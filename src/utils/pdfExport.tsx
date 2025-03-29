@@ -1040,14 +1040,14 @@ export const generatePDFReport = ({
 
         {/* CSAT Breakdown */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>CSAT Breakdown</Text>
+          <Text style={styles.sectionTitle}>📊 CSAT Breakdown</Text>
           <Text style={styles.subsectionTitle}>By Channel:</Text>
           {csatByChannel.map(({ channel, csat }, i) => (
-            <Text key={i} style={styles.notesContent}>{channel}: {csat.toFixed(1)}%</Text>
+            <Text key={channel} style={styles.notesContent}>{channel}: {csat.toFixed(1)}%</Text>
           ))}
           <Text style={styles.subsectionTitle}>By Offer Type:</Text>
           {csatByType.map(({ type, csat }, i) => (
-            <Text key={i} style={styles.notesContent}>{type}: {csat.toFixed(1)}%</Text>
+            <Text key={type} style={styles.notesContent}>{type}: {csat.toFixed(1)}%</Text>
           ))}
         </View>
 
@@ -1074,6 +1074,20 @@ export const generatePDFReport = ({
           <Text>📉 Worst Day: {format(parseISO(worstDay), 'MMM d')} ({worstDayCount} offers)</Text>
         </View>
 
+        {/* Top Tip Guidance */}
+        <View style={styles.highlightBox}>
+          <Text style={styles.highlightTitle}>🧠 Top Tip</Text>
+          <Text style={styles.highlightContent}>
+            {followupRate < 30
+              ? "Consider improving follow-up rate — it can directly impact conversions."
+              : csatRate < 60
+              ? "Work on creating more positive experiences — your CSAT is below 60%."
+              : conversionRate < 10
+              ? "Low conversion rate — review how you&apos;re presenting value to customers."
+              : "You&apos;re doing great — keep pushing for consistency!"}
+          </Text>
+        </View>
+
         {/* Summary Flags */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Summary Flags</Text>
@@ -1086,13 +1100,13 @@ export const generatePDFReport = ({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🚩 Opportunity Watchlist</Text>
           {lowCSATChannels.map(({ channel }) => (
-            <Text style={styles.notesContent}>• Low CSAT on {channel}</Text>
+            <Text style={styles.notesContent} key={channel}>• Low CSAT on {channel}</Text>
           ))}
           {lowConvertTypes.map(type => (
-            <Text style={styles.notesContent}>• Low conversion on {type}</Text>
+            <Text style={styles.notesContent} key={type}>• Low conversion on {type}</Text>
           ))}
           {lowUsageChannels.map(channel => (
-            <Text style={styles.notesContent}>• Underused channel: {channel}</Text>
+            <Text style={styles.notesContent} key={channel}>• Underused channel: {channel}</Text>
           ))}
         </View>
 
