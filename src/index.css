@@ -1,0 +1,318 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 222 47% 11%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 5% 26%;
+    --sidebar-primary: 240 6% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 5% 96%;
+    --sidebar-accent-foreground: 240 6% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
+
+    --success: 142 72% 50%;
+    --success-foreground: 210 40% 98%;
+
+    --warning: 35 92% 58%;
+    --warning-foreground: 210 40% 98%;
+
+    --progress-low: 0 84% 60%;
+    --progress-medium: 35 92% 58%;
+    --progress-high: 200 98% 48%;
+    --progress-complete: 142 72% 50%;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217 33% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 18%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 18%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 20%;
+    --input: 217 33% 22%;
+    --ring: 213 27% 84%;
+
+    --sidebar-background: 223 47% 11%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 18%;
+    --sidebar-ring: 213 27% 84%;
+
+    --success: 142 72% 50%;
+    --success-foreground: 210 40% 98%;
+
+    --warning: 35 92% 58%;
+    --warning-foreground: 210 40% 98%;
+
+    --progress-low: 0 84% 60%;
+    --progress-medium: 35 92% 58%;
+    --progress-high: 200 98% 48%;
+    --progress-complete: 142 72% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+  }
+
+  /* Font size preferences */
+  html.text-sm {
+    font-size: 14px;
+  }
+  
+  html.text-base {
+    font-size: 16px;
+  }
+  
+  html.text-lg {
+    font-size: 18px;
+  }
+  
+  /* App-wide density preferences */
+  html.density-compact .card,
+  html.density-compact .p-4 {
+    padding: 0.5rem;
+  }
+  
+  html.density-compact .p-6,
+  html.density-compact section.p-6 {
+    padding: 0.75rem;
+  }
+  
+  html.density-compact .space-y-6 > * + * {
+    margin-top: 0.75rem;
+  }
+  
+  html.density-compact .space-y-4 > * + * {
+    margin-top: 0.5rem;
+  }
+  
+  html.density-compact .gap-4 {
+    gap: 0.5rem;
+  }
+  
+  html.density-compact .gap-6 {
+    gap: 0.75rem;
+  }
+  
+  html.density-comfortable .card,
+  html.density-comfortable .p-4 {
+    padding: 1rem;
+  }
+  
+  html.density-comfortable .p-6 {
+    padding: 1.25rem;
+  }
+  
+  html.density-cozy .card,
+  html.density-cozy .p-4 {
+    padding: 1.5rem;
+  }
+  
+  html.density-cozy .p-6,
+  html.density-cozy section.p-6 {
+    padding: 2rem;
+  }
+  
+  html.density-cozy .space-y-4 > * + * {
+    margin-top: 1.5rem;
+  }
+  
+  html.density-cozy .space-y-6 > * + * {
+    margin-top: 2rem;
+  }
+  
+  html.density-cozy .gap-4 {
+    gap: 1rem;
+  }
+  
+  html.density-cozy .gap-6 {
+    gap: 1.5rem;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-secondary/50 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full transition-colors;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+  
+  /* Apple-like typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-medium tracking-tight text-balance;
+  }
+  
+  button, .button {
+    @apply font-medium tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-background/80 backdrop-blur-md border border-border/50 shadow-sm;
+  }
+
+  .glass-card {
+    @apply bg-card/90 backdrop-blur-sm border border-border/80 shadow-sm hover:shadow transition-all rounded-xl;
+  }
+  
+  /* Apple-like styles */
+  .apple-button {
+    @apply rounded-full font-medium transition-all duration-200 shadow-sm hover:shadow active:scale-[0.98];
+  }
+  
+  .apple-panel {
+    @apply rounded-2xl shadow-md bg-white/90 dark:bg-black/80 backdrop-blur-xl border border-white/10 dark:border-white/5; 
+  }
+  
+  .apple-gradient-blue {
+    @apply bg-gradient-to-r from-blue-500 to-indigo-600;
+  }
+  
+  .apple-gradient-purple {
+    @apply bg-gradient-to-r from-purple-500 to-pink-500;
+  }
+  
+  .apple-gradient-green {
+    @apply bg-gradient-to-r from-emerald-500 to-green-500;
+  }
+  
+  .apple-gradient-yellow {
+    @apply bg-gradient-to-r from-amber-400 to-yellow-500;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .page-transition-enter {
+    @apply opacity-0;
+  }
+  
+  .page-transition-enter-active {
+    @apply opacity-100 transition-opacity duration-300;
+  }
+  
+  .page-transition-exit {
+    @apply opacity-100;
+  }
+  
+  .page-transition-exit-active {
+    @apply opacity-0 transition-opacity duration-300;
+  }
+  
+  /* Progress circle colors */
+  .progress-segment-1 {
+    @apply stroke-amber-400;
+  }
+  
+  .progress-segment-2 {
+    @apply stroke-emerald-500;
+  }
+  
+  .progress-segment-3 {
+    @apply stroke-blue-500;
+  }
+  
+  .progress-segment-4 {
+    @apply stroke-purple-500;
+  }
+  
+  /* Progress segments background */
+  .progress-segment-bg-1 {
+    @apply stroke-amber-400/20;
+  }
+  
+  .progress-segment-bg-2 {
+    @apply stroke-emerald-500/20;
+  }
+  
+  .progress-segment-bg-3 {
+    @apply stroke-blue-500/20;
+  }
+  
+  .progress-segment-bg-4 {
+    @apply stroke-purple-500/20;
+  }
+}
+
+/* Apple Dynamic Island-inspired animations */
+@keyframes pulse-light {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-light {
+  animation: pulse-light 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
