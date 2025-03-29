@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { Offer, useOffers } from "@/context/OfferContext";
@@ -197,10 +196,10 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
                       </TooltipProvider>
 
                       <Popover>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <PopoverTrigger asChild>
+                        <PopoverTrigger asChild>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
@@ -209,13 +208,13 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
                                 >
                                   <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
                                 </Button>
-                              </PopoverTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              <p>Set follow-up</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">
+                                <p>Set follow-up</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="end">
                           <div className="p-2 border-b border-border flex items-center gap-2">
                             <span className="text-xs text-muted-foreground">Set time:</span>
