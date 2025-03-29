@@ -235,11 +235,11 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
                         </PopoverContent>
                       </Popover>
 
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Popover>
-                              <PopoverTrigger asChild>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
@@ -260,42 +260,42 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
                                     <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground" />
                                   )}
                                 </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-1" align="end">
-                                <div className="flex gap-1">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6 rounded-full bg-success/20"
-                                    onClick={() => handleCSATUpdate(offer.id, 'positive')}
-                                  >
-                                    <ThumbsUp className="h-3.5 w-3.5 text-success" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6 rounded-full bg-warning/20"
-                                    onClick={() => handleCSATUpdate(offer.id, 'neutral')}
-                                  >
-                                    <Minus className="h-3.5 w-3.5 text-warning" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6 rounded-full bg-destructive/20"
-                                    onClick={() => handleCSATUpdate(offer.id, 'negative')}
-                                  >
-                                    <ThumbsDown className="h-3.5 w-3.5 text-destructive" />
-                                  </Button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <p>Set CSAT</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">
+                                <p>Set CSAT rating</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-1" align="end">
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 rounded-full bg-success/20"
+                              onClick={() => handleCSATUpdate(offer.id, 'positive')}
+                            >
+                              <ThumbsUp className="h-3.5 w-3.5 text-success" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 rounded-full bg-warning/20"
+                              onClick={() => handleCSATUpdate(offer.id, 'neutral')}
+                            >
+                              <Minus className="h-3.5 w-3.5 text-warning" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 rounded-full bg-destructive/20"
+                              onClick={() => handleCSATUpdate(offer.id, 'negative')}
+                            >
+                              <ThumbsDown className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
 
                       <TooltipProvider>
                         <Tooltip>
