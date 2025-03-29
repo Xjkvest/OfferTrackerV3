@@ -1041,12 +1041,13 @@ export const generatePDFReport = ({
         {/* CSAT Breakdown */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📊 CSAT Breakdown</Text>
-          <Text style={styles.subsectionTitle}>By Channel:</Text>
-          {csatByChannel.map(({ channel, csat }, i) => (
+          <Text style={styles.subsectionTitle}>By Channel</Text>
+          {csatByChannel.map(({ channel, csat }) => (
             <Text key={channel} style={styles.notesContent}>{channel}: {csat.toFixed(1)}%</Text>
           ))}
-          <Text style={styles.subsectionTitle}>By Offer Type:</Text>
-          {csatByType.map(({ type, csat }, i) => (
+
+          <Text style={styles.subsectionTitle}>By Offer Type</Text>
+          {csatByType.map(({ type, csat }) => (
             <Text key={type} style={styles.notesContent}>{type}: {csat.toFixed(1)}%</Text>
           ))}
         </View>
@@ -1079,12 +1080,12 @@ export const generatePDFReport = ({
           <Text style={styles.highlightTitle}>🧠 Top Tip</Text>
           <Text style={styles.highlightContent}>
             {followupRate < 30
-              ? "Consider improving follow-up rate — it can directly impact conversions."
+              ? 'Consider improving follow-up rate — it can directly impact conversions.'
               : csatRate < 60
-              ? "Work on creating more positive experiences — your CSAT is below 60%."
+              ? 'Work on creating more positive experiences — your CSAT is below 60%.'
               : conversionRate < 10
-              ? "Low conversion rate — review how you&apos;re presenting value to customers."
-              : "You&apos;re doing great — keep pushing for consistency!"}
+              ? 'Low conversion rate — review how you're presenting value to customers.'
+              : 'You're doing great — keep pushing for consistency!'}
           </Text>
         </View>
 
@@ -1121,6 +1122,37 @@ export const generatePDFReport = ({
               ? "Experiment with offer timing or types."
               : "Keep up the strong performance!"}
           </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📅 Weekly Offer Summary</Text>
+          {weeklyPerformanceData.map(({ week, totalOffers }, i) => (
+            <Text key={week} style={styles.notesContent}>Week {week}: {totalOffers} offers</Text>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔥 Offer Streak</Text>
+          {(() => {
+            const sortedDates = Object.keys(dailyPerformance).sort();
+            let streak = 0, maxStreak = 0;
+            for (let i = 0; i < sortedDates.length; i++) {
+              const current = parseISO(sortedDates[i]);
+              const next = parseISO(sortedDates[i + 1]);
+              streak++;
+              if (!next || differenceInDays(next, current) !== 1) {
+                maxStreak = Math.max(maxStreak, streak);
+                streak = 0;
+              }
+            }
+            return (
+              <Text style={styles.notesContent}>
+                {maxStreak >= 5
+                  ? `🔥 ${maxStreak}-day active streak! Keep it going.`
+                  : `${maxStreak}-day activity streak. Aim for 5+ days in a row!`}
+              </Text>
+            );
+          })()}
         </View>
       </Page>
       
