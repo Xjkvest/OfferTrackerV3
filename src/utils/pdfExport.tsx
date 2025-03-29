@@ -1041,12 +1041,12 @@ export const generatePDFReport = ({
         {/* CSAT Breakdown */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📊 CSAT Breakdown</Text>
-          <Text style={styles.subsectionTitle}>By Channel</Text>
+          <Text style={styles.subsectionTitle}>By Channel:</Text>
           {csatByChannel.map(({ channel, csat }) => (
             <Text key={channel} style={styles.notesContent}>{channel}: {csat.toFixed(1)}%</Text>
           ))}
 
-          <Text style={styles.subsectionTitle}>By Offer Type</Text>
+          <Text style={styles.subsectionTitle}>By Offer Type:</Text>
           {csatByType.map(({ type, csat }) => (
             <Text key={type} style={styles.notesContent}>{type}: {csat.toFixed(1)}%</Text>
           ))}
@@ -1080,12 +1080,12 @@ export const generatePDFReport = ({
           <Text style={styles.highlightTitle}>🧠 Top Tip</Text>
           <Text style={styles.highlightContent}>
             {followupRate < 30
-              ? 'Consider improving follow-up rate — it can directly impact conversions.'
+              ? "Consider improving follow-up rate — it can directly impact conversions."
               : csatRate < 60
-              ? 'Work on creating more positive experiences — your CSAT is below 60%.'
+              ? "Work on creating more positive experiences — your CSAT is below 60%."
               : conversionRate < 10
-              ? 'Low conversion rate — review how you're presenting value to customers.'
-              : 'You're doing great — keep pushing for consistency!'}
+              ? "Low conversion rate — review how you're presenting value to customers."
+              : "You're doing great — keep pushing for consistency!"}
           </Text>
         </View>
 
