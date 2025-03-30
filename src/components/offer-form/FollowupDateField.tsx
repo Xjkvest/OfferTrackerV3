@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -11,6 +10,8 @@ import { UseFormReturn } from "react-hook-form";
 import { OfferFormValues } from "@/hooks/useOfferForm";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/context/UserContext";
+import { toast } from "@/hooks/use-toast";
+import { toISODateString, combineDateAndTime } from "@/utils/dateUtils";
 
 interface FollowupDateFieldProps {
   form: UseFormReturn<OfferFormValues>;
@@ -19,6 +20,9 @@ interface FollowupDateFieldProps {
 export function FollowupDateField({ form }: FollowupDateFieldProps) {
   const { settings } = useUser();
   const [open, setOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    form.getValues('followupDate') ? new Date(form.getValues('followupDate')) : undefined
+  );
   const [followupTime, setFollowupTime] = useState<string>(() => {
     // Default to 9:00 AM or current time
     if (form.getValues('followupDate')) {
@@ -28,16 +32,30 @@ export function FollowupDateField({ form }: FollowupDateFieldProps) {
     return "09:00";
   });
 
+  // Update the selectedDate when the form value changes
+  useEffect(() => {
+    const followupDate = form.getValues('followupDate');
+    if (followupDate) {
+      setSelectedDate(new Date(followupDate));
+    } else {
+      setSelectedDate(undefined);
+    }
+  }, [form.getValues('followupDate')]);
+
   const handleSaveDateTime = () => {
-    const dateValue = form.getValues('followupDate');
-    if (dateValue) {
+    if (selectedDate) {
       // Parse the date string to a Date object
-      const date = new Date(dateValue);
+      const date = new Date(selectedDate);
       // Add the time component
       const [hours, minutes] = followupTime.split(':').map(Number);
       date.setHours(hours, minutes, 0, 0);
       // Update the form value with the new date including time
-      form.setValue('followupDate', date.toISOString().split('T')[0]);
+      form.setValue('followupDate', toISODateString(date));
+      
+      toast({
+        title: "Follow-up Scheduled",
+        description: `Follow-up set for ${format(date, "PPP")} at ${followupTime}`,
+      });
     }
     setOpen(false);
   };
@@ -45,6 +63,7 @@ export function FollowupDateField({ form }: FollowupDateFieldProps) {
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     form.setValue('followupDate', undefined);
+    setSelectedDate(undefined);
   };
   
   // Add a default follow-up date based on settings
@@ -71,7 +90,20 @@ export function FollowupDateField({ form }: FollowupDateFieldProps) {
     // Set the default follow-up date
     const defaultDate = new Date(today);
     defaultDate.setDate(today.getDate() + daysToAdd);
-    form.setValue('followupDate', defaultDate.toISOString().split('T')[0]);
+    setSelectedDate(defaultDate);
+    form.setValue('followupDate', toISODateString(defaultDate));
+  };
+
+  // Handle direct calendar selection
+  const handleCalendarSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (date) {
+      // Combine the selected date with the time from the input
+      const combined = combineDateAndTime(date, followupTime);
+      form.setValue('followupDate', toISODateString(combined));
+    } else {
+      form.setValue('followupDate', undefined);
+    }
   };
 
   return (
@@ -129,14 +161,8 @@ export function FollowupDateField({ form }: FollowupDateFieldProps) {
                 </div>
                 <Calendar
                   mode="single"
-                  selected={field.value ? new Date(field.value) : undefined}
-                  onSelect={(date) => {
-                    if (date) {
-                      field.onChange(date.toISOString().split('T')[0]);
-                    } else {
-                      field.onChange(undefined);
-                    }
-                  }}
+                  selected={selectedDate}
+                  onSelect={handleCalendarSelect}
                   disabled={(date) => date < new Date()}
                   initialFocus
                   className="pointer-events-auto"

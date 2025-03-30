@@ -1,5 +1,6 @@
-
-import { format, differenceInDays, getDaysInMonth as getLibDaysInMonth, isToday as isLibToday } from 'date-fns';
+import { format, differenceInDays, getDaysInMonth as getLibDaysInMonth, isToday as isLibToday, isValid, parseISO } from 'date-fns';
+import { Zap, Clock } from 'lucide-react';
+import React from 'react';
 
 /**
  * Combines a date and time string into a single Date object
@@ -48,43 +49,25 @@ export const getDefaultFollowupTime = (): string => {
 };
 
 /**
- * Calculates and formats conversion lag information
- * @param offerDate Original offer date
- * @param conversionDate Date when offer was converted
- * @returns Object with text, icon element, and fast flag
+ * Get conversion lag information for UI display
  */
-export const getConversionLagInfo = (offerDate: Date | string, conversionDate: Date | string) => {
-  const startDate = typeof offerDate === 'string' ? new Date(offerDate) : offerDate;
-  const endDate = typeof conversionDate === 'string' ? new Date(conversionDate) : conversionDate;
+export function getConversionLagInfo(offerDate: string, conversionDate: string | undefined) {
+  if (!conversionDate) return null;
   
-  const days = differenceInDays(endDate, startDate);
-  
-  if (days === 0) {
-    return { 
-      text: "Same day", 
-      lagDays: 0,
-      isFast: true 
-    };
-  } else if (days <= 3) {
-    return { 
-      text: `in ${days} day${days > 1 ? 's' : ''}`, 
-      lagDays: days,
-      isFast: true 
-    };
-  } else if (days > 7) {
-    return { 
-      text: `in ${days} days`, 
-      lagDays: days,
-      isFast: false 
-    };
+  const startDate = parseISO(offerDate);
+  const endDate = parseISO(conversionDate);
+  const lagDays = differenceInDays(endDate, startDate);
+
+  if (lagDays === 0) {
+    return { text: "Same day", iconType: "zap", iconColor: "amber", fast: true };
+  } else if (lagDays <= 3) {
+    return { text: `in ${lagDays} day${lagDays > 1 ? 's' : ''}`, iconType: "zap", iconColor: "amber", fast: true };
+  } else if (lagDays > 7) {
+    return { text: `in ${lagDays} days`, iconType: "clock", iconColor: "blue", fast: false };
   } else {
-    return { 
-      text: `in ${days} days`, 
-      lagDays: days,
-      isFast: false 
-    };
+    return { text: `in ${lagDays} days`, iconType: "clock", iconColor: "green", fast: false };
   }
-};
+}
 
 /**
  * Returns today's date as YYYY-MM-DD
@@ -118,4 +101,21 @@ export const getDaysInMonth = (month: number, year: number): number => {
 export const getDaysPassedInCurrentMonth = (): number => {
   const today = new Date();
   return today.getDate();
+};
+
+/**
+ * Safely converts a date to ISO string without timezone problems
+ * This function ensures the correct date is preserved
+ */
+export const toISODateString = (date: Date): string => {
+  // Create a new date object in the local timezone
+  const localDate = new Date(date);
+  
+  // Get year, month, and day
+  const year = localDate.getFullYear();
+  const month = String(localDate.getMonth() + 1).padStart(2, '0');
+  const day = String(localDate.getDate()).padStart(2, '0');
+  
+  // Return date in YYYY-MM-DD format
+  return `${year}-${month}-${day}`;
 };

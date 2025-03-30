@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useOfferForm, OfferFormValues } from "@/hooks/useOfferForm";
 import { Form } from "@/components/ui/form";
 import { motion } from "framer-motion";
@@ -8,7 +8,7 @@ import { OfferTypeField } from "./offer-form/OfferTypeField";
 import { NotesField } from "./offer-form/NotesField";
 import { FollowupDateField } from "./offer-form/FollowupDateField";
 import { SubmitButton } from "./offer-form/SubmitButton";
-import { useRef } from "react";
+import { DuplicateCaseDialog } from "./offer-form/DuplicateCaseDialog";
 
 interface OfferFormProps {
   onSuccess?: () => void;
@@ -19,7 +19,17 @@ interface OfferFormProps {
 }
 
 export function OfferForm({ onSuccess, initialValues, offerId, className, compact = false }: OfferFormProps) {
-  const { form, isSubmitting, isSuccess, onSubmit } = useOfferForm({
+  const { 
+    form, 
+    isSubmitting, 
+    isSuccess, 
+    onSubmit,
+    showDuplicateDialog,
+    existingOffer,
+    handleForceSave,
+    handleEditExisting,
+    setShowDuplicateDialog,
+  } = useOfferForm({
     onSuccess,
     initialValues,
     offerId,
@@ -66,9 +76,18 @@ export function OfferForm({ onSuccess, initialValues, offerId, className, compac
           variants={formVariants}
           initial="hidden"
           animate="visible"
+          aria-labelledby="offer-form-title"
+          aria-describedby="offer-form-description"
         >
+          <div className="sr-only">
+            <h2 id="offer-form-title">{offerId ? "Edit Offer" : "New Offer"}</h2>
+            <p id="offer-form-description">
+              {offerId ? "Edit your offer details" : "Enter your offer details"}
+            </p>
+          </div>
+          
           <motion.div variants={itemVariants}>
-            <CaseNumberField form={form} ref={firstInputRef} />
+            <CaseNumberField form={form} ref={firstInputRef} offerId={offerId} />
           </motion.div>
 
           <motion.div variants={itemVariants}>
@@ -101,6 +120,14 @@ export function OfferForm({ onSuccess, initialValues, offerId, className, compac
           </motion.div>
         </motion.form>
       </Form>
+
+      <DuplicateCaseDialog
+        isOpen={showDuplicateDialog}
+        onClose={() => setShowDuplicateDialog(false)}
+        onEditExisting={handleEditExisting}
+        onForceSave={handleForceSave}
+        existingOffer={existingOffer}
+      />
     </div>
   );
 }

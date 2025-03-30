@@ -2,10 +2,10 @@ import React from "react";
 import { Offer, useOffers } from "@/context/OfferContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { format, differenceInDays } from "date-fns";
-import { CalendarClock, CheckCircle, AlertCircle, ThumbsUp, ThumbsDown, Minus, Pencil, Trash, X, ShoppingCart, Calendar, Zap, Clock, MessageCircle, Mail, Phone, PhoneCall } from "lucide-react";
+import { format, differenceInDays, parseISO, isToday, isBefore } from "date-fns";
+import { CalendarClock, CheckCircle, AlertCircle, ThumbsUp, ThumbsDown, Minus, Pencil, Trash, X, ShoppingCart, Calendar as CalendarIcon, Zap, Clock, MessageCircle, Mail, Phone, PhoneCall, ChevronRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { OfferDetails } from "./OfferDetails";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -14,16 +14,21 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CaseLink } from "./CaseLink";
 import { getConversionLagInfo } from "@/utils/dateUtils";
+import { useFollowupManager } from "@/hooks/useFollowupManager";
+import { useNavigate } from "react-router-dom";
 
 interface OfferItemProps {
   offer: Offer;
   onUpdate?: () => void;
+  className?: string;
 }
 
-export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
+export const OfferItem = React.memo(({ offer, onUpdate, className = "" }: OfferItemProps) => {
   const { updateOffer, deleteOffer } = useOffers();
   const [isOpen, setIsOpen] = React.useState(false);
   const [showConversionDate, setShowConversionDate] = React.useState(false);
+  const navigate = useNavigate();
+  const { addNewFollowup, hasActiveFollowup, getActiveFollowupDate, markFollowupAsCompleted, getFollowupStatus, isFollowupOverdue, isFollowupDueToday } = useFollowupManager();
   
   const date = new Date(offer.date);
   const formattedDate = format(date, "MMM d");
@@ -31,24 +36,39 @@ export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
   
   // Conversion lag calculation
   const getConversionLag = () => {
-    if (!offer.converted || !offer.conversionDate) return null;
+    if (!offer.converted && offer.converted !== undefined) return null;
     
     const offerDate = new Date(offer.date);
-    const conversionDate = new Date(offer.conversionDate);
-    const lagInfo = getConversionLagInfo(offerDate, conversionDate);
+    const today = new Date();
     
-    if (lagInfo.lagDays === 0) {
-      return { text: "Same day", icon: <Zap className="h-3 w-3 text-amber-500" />, fast: true };
-    } else if (lagInfo.lagDays <= 3) {
-      return { 
-        text: `in ${lagInfo.lagDays} day${lagInfo.lagDays > 1 ? 's' : ''}`, 
-        icon: <Zap className="h-3 w-3 text-amber-500" />, 
-        fast: true 
-      };
-    } else if (lagInfo.lagDays > 7) {
-      return { text: `in ${lagInfo.lagDays} days`, icon: <Clock className="h-3 w-3 text-blue-500" />, fast: false };
+    // Set both dates to midnight for accurate day comparison
+    offerDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    
+    const lagDays = differenceInDays(today, offerDate);
+    
+    if (offer.converted && offer.conversionDate) {
+      const conversionDate = new Date(offer.conversionDate);
+      conversionDate.setHours(0, 0, 0, 0);
+      const conversionLagDays = differenceInDays(conversionDate, offerDate);
+      
+      if (conversionLagDays === 0) {
+        return { text: "Same day", icon: <Zap className="h-3 w-3 text-amber-500" />, fast: true };
+      } else if (conversionLagDays <= 3) {
+        return { 
+          text: `${conversionLagDays} day${conversionLagDays > 1 ? 's' : ''}`, 
+          icon: <Zap className="h-3 w-3 text-amber-500" />, 
+          fast: true 
+        };
+      } else if (conversionLagDays > 7) {
+        return { text: `${conversionLagDays} days`, icon: <Clock className="h-3 w-3 text-blue-500" />, fast: false };
+      } else {
+        return { text: `${conversionLagDays} days`, icon: <Clock className="h-3 w-3 text-green-500" />, fast: false };
+      }
+    } else if (lagDays > 30) {
+      return { text: "Over 30 days", icon: <Clock className="h-3 w-3 text-red-500" />, fast: false };
     } else {
-      return { text: `in ${lagInfo.lagDays} days`, icon: <Clock className="h-3 w-3 text-green-500" />, fast: false };
+      return { text: `${30 - lagDays} days left`, icon: <Clock className="h-3 w-3 text-blue-500" />, fast: false };
     }
   };
   
@@ -97,14 +117,68 @@ export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
   };
 
   const handleFollowupDateChange = (date: Date | undefined) => {
-    updateOffer(offer.id, { 
-      followupDate: date ? date.toISOString().split('T')[0] : undefined 
-    });
-    onUpdate?.();
-    toast({
-      title: "Follow-up Date Updated",
-      description: date ? `Follow-up scheduled for ${format(date, "PPP")}` : "Follow-up date removed",
-    });
+    if (date) {
+      // If setting a new followup date
+      const dateString = date.toISOString().split('T')[0];
+      
+      // Create a new followup item
+      const newFollowup = {
+        id: `followup-${Date.now()}`,
+        date: dateString,
+        notes: offer.notes,
+        completed: false
+      };
+      
+      // Get existing followups or initialize empty array
+      const existingFollowups = offer.followups || [];
+      
+      // Check if there are any active followups
+      const hasActive = existingFollowups.some(f => !f.completed);
+      
+      if (hasActive) {
+        // If there's already an active followup, show a warning toast
+        toast({
+          title: "Active followup exists",
+          description: "This offer already has an active followup scheduled.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Update the offer with the new followup
+      updateOffer(offer.id, { 
+        followups: [...existingFollowups, newFollowup],
+        followupDate: dateString // Keep legacy field in sync
+      });
+      
+      onUpdate?.();
+      toast({
+        title: "Follow-up Scheduled",
+        description: `Follow-up scheduled for ${format(date, "PPP")}`,
+      });
+    } else {
+      // If clearing a followup date
+      // Only clear if there are no completed followups
+      if (!offer.followups?.some(f => f.completed)) {
+        updateOffer(offer.id, { 
+          followups: [],
+          followupDate: undefined 
+        });
+        
+        onUpdate?.();
+        toast({
+          title: "Follow-up Removed",
+          description: "Follow-up date has been removed",
+        });
+      } else {
+        // Don't allow clearing if there are completed followups
+        toast({
+          title: "Cannot remove followups",
+          description: "This offer has completed followups that can't be removed.",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   // Get channel icon
@@ -124,148 +198,287 @@ export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
     return '';
   };
 
-  // Check if follow-up is due today or overdue
-  const isFollowupDueToday = () => {
-    if (!offer.followupDate) return false;
-    const today = new Date().toISOString().split('T')[0];
-    return offer.followupDate === today;
+  // Get followup status
+  const followupStatus = getFollowupStatus(offer);
+  
+  // Format the date
+  const displayDate = format(parseISO(offer.date), "MMM dd");
+  
+  // Get active followup date if any
+  const activeFollowupDate = getActiveFollowupDate(offer);
+  
+  // State for UI interactions
+  const [isHovering, setIsHovering] = React.useState(false);
+  
+  const offerStyles = {
+    base: "flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 group",
+    active: "bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-800",
+    inactive: "bg-gray-50 hover:bg-gray-100 dark:bg-gray-900/50 dark:hover:bg-gray-900",
+    followupOverdue: "border-red-200 dark:border-red-900 shadow-sm",
+    followupToday: "border-yellow-200 dark:border-yellow-900 shadow-sm",
+    followupActive: "border-blue-200 dark:border-blue-900",
+    followupCompleted: "border-green-200 dark:border-green-900 opacity-80",
+    noFollowup: "border-gray-200 dark:border-gray-800",
   };
-
-  const isFollowupOverdue = () => {
-    if (!offer.followupDate) return false;
-    const today = new Date().toISOString().split('T')[0];
-    return offer.followupDate < today;
+  
+  // Determine the style based on followup status
+  let borderStyle = offerStyles.noFollowup;
+  
+  switch (followupStatus) {
+    case 'overdue':
+      borderStyle = offerStyles.followupOverdue;
+      break;
+    case 'due-today':
+      borderStyle = offerStyles.followupToday;
+      break;
+    case 'active':
+      borderStyle = offerStyles.followupActive;
+      break;
+    case 'completed':
+      borderStyle = offerStyles.followupCompleted;
+      break;
+    default:
+      borderStyle = offerStyles.noFollowup;
+  }
+  
+  // Handle followup actions
+  const handleFollowupClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    try {
+      // Mark the followup as completed
+      const success = await markFollowupAsCompleted(offer.id, offer);
+      
+      if (success) {
+        toast({
+          title: "Follow-up Completed",
+          description: "Follow-up has been marked as completed."
+        });
+      }
+    } catch (error) {
+      console.error("Error completing followup:", error);
+      toast({
+        title: "Error",
+        description: "Failed to mark followup as completed.",
+        variant: "destructive"
+      });
+    }
   };
-
-  // Get follow-up status text and style
-  const getFollowupStatus = () => {
-    if (isFollowupOverdue()) {
-      return {
-        text: "Overdue",
-        badge: <Badge variant="outline" className="text-xs font-normal text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-700/50">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          Overdue
-        </Badge>
-      };
-    }
+  
+  // Add a followup for today
+  const handleAddFollowupForToday = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     
-    if (isFollowupDueToday()) {
-      return {
-        text: "Due Today",
-        badge: <Badge variant="outline" className="text-xs font-normal text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700/50">
-          <Clock className="h-3 w-3 mr-1" />
-          Due Today
-        </Badge>
-      };
+    try {
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Add a new followup for today
+      const success = await addNewFollowup(
+        offer.id, 
+        offer, 
+        today, 
+        "Follow-up added for today"
+      );
+      
+      if (success) {
+        toast({
+          title: "Follow-up Scheduled",
+          description: "Follow-up has been scheduled for today."
+        });
+      }
+    } catch (error) {
+      console.error("Error scheduling followup:", error);
+      toast({
+        title: "Error",
+        description: "Failed to schedule followup for today.",
+        variant: "destructive"
+      });
     }
-    
-    if (offer.followupDate) {
-      return {
-        text: `Follow-up: ${format(new Date(offer.followupDate), "MMM d")}`,
-        badge: <Badge variant="outline" className="text-xs font-normal text-blue-600 dark:text-blue-400">
-          <Calendar className="h-3 w-3 mr-1" />
-          {format(new Date(offer.followupDate), "MMM d")}
-        </Badge>
-      };
-    }
-    
-    return { text: null, badge: null };
   };
+  
+  // View offer details
+  const handleViewOffer = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/offer/${offer.id}`);
+  };
+  
+  // Prepare followup info for display
+  let followupLabel = "";
+  let followupIcon = null;
+  
+  switch (followupStatus) {
+    case 'overdue':
+      followupLabel = "Overdue";
+      followupIcon = <AlertCircle className="h-3.5 w-3.5 text-red-500" />;
+      break;
+    case 'due-today':
+      followupLabel = "Due Today";
+      followupIcon = <Clock className="h-3.5 w-3.5 text-yellow-500" />;
+      break;
+    case 'active':
+      followupLabel = "Scheduled";
+      followupIcon = <CalendarIcon className="h-3.5 w-3.5 text-blue-500" />;
+      break;
+    case 'completed':
+      followupLabel = "Completed";
+      followupIcon = <CheckCircle className="h-3.5 w-3.5 text-green-500" />;
+      break;
+  }
+  
+  // Format due date for display in decision timeframe
+  const formatDueDate = () => {
+    // Don't show due date for converted offers
+    if (offer.converted) return null;
 
-  const followupStatus = getFollowupStatus();
-
+    const today = new Date().toISOString().split("T")[0];
+    const dueDate = new Date();
+    dueDate.setDate(date.getDate() + 30);
+    const formattedDueDate = format(dueDate, "MMM d");
+    
+    // Calculate days left until 30 days pass
+    const daysLeft = 30 - differenceInDays(new Date(), date);
+    
+    if (daysLeft <= 0) {
+      // Past due date
+      return (
+        <div className="flex items-center text-rose-500 dark:text-rose-400">
+          <AlertCircle className="h-3.5 w-3.5 mr-1" />
+          <span className="text-xs">Decision Overdue</span>
+        </div>
+      );
+    } else if (daysLeft <= 7) {
+      // Due within a week
+      return (
+        <div className="flex items-center text-amber-500 dark:text-amber-400">
+          <AlertCircle className="h-3.5 w-3.5 mr-1" />
+          <span className="text-xs">
+            {daysLeft === 1 ? "Due Tomorrow" : `Due in ${daysLeft} days`}
+          </span>
+        </div>
+      );
+    } else {
+      // Due in more than a week
+      return (
+        <div className="flex items-center text-muted-foreground">
+          <CalendarClock className="h-3.5 w-3.5 mr-1" />
+          <span className="text-xs">Due {formattedDueDate}</span>
+        </div>
+      );
+    }
+  };
+  
+  // Update the code that's calling isFollowupOverdue() and isFollowupDueToday() without arguments
+  const shouldShowFollowupDialog = () => {
+    return isFollowupOverdue(offer) || isFollowupDueToday(offer);
+  };
+  
+  // Render the component
   return (
-    <Card className={`relative overflow-hidden transition-all hover:shadow-md ${getCardBgColor()} ${offer.converted ? 'border-blue-200 dark:border-blue-800/30' : ''}`}>
-      <div className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2.5 flex-1 min-w-0">
-            {/* Top Section */}
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold truncate text-base">{offer.offerType}</h3>
-              <Button variant="ghost" size="icon" className="h-7 w-7 ml-2" onClick={() => setIsOpen(true)}>
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            
-            {/* Info Section */}
-            <div className="text-xs text-muted-foreground space-y-1.5">
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="flex items-center gap-1">
-                  <CaseLink caseNumber={offer.caseNumber} iconSize={3} />
-                </span>
-                
-                <span className="flex items-center gap-1">
-                  {getChannelIcon()}
-                  <span>{offer.channel}</span>
-                </span>
-                
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>{formattedDate} • {formattedTime}</span>
-                </span>
+    <TooltipProvider>
+      <Card className={`${offerStyles.base} ${isHovering ? offerStyles.active : offerStyles.inactive} ${borderStyle} ${className}`}>
+        <div className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2.5 flex-1 min-w-0">
+              {/* Top Section */}
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold truncate text-base">{offer.offerType}</h3>
+                <Button variant="ghost" size="icon" className="h-7 w-7 ml-2" onClick={() => setIsOpen(true)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
               </div>
               
-              {/* Status Badges */}
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {/* CSAT Badge */}
-                {offer.csat && (
-                  <Badge className={`
-                    text-xs font-normal
-                    ${offer.csat === 'positive' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 
-                     offer.csat === 'neutral' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' : 
-                     'bg-rose-500/20 text-rose-600 dark:text-rose-400'}
-                  `}>
-                    {offer.csat === 'positive' ? (
-                      <><ThumbsUp className="h-3 w-3 mr-1" /> Positive</>
-                    ) : offer.csat === 'neutral' ? (
-                      <><Minus className="h-3 w-3 mr-1" /> Neutral</>
-                    ) : (
-                      <><ThumbsDown className="h-3 w-3 mr-1" /> Negative</>
-                    )}
-                  </Badge>
-                )}
-                
-                {/* Conversion Badge */}
-                {offer.converted !== undefined && (
-                  <Badge className={offer.converted 
-                    ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/30 text-xs font-normal"
-                    : "bg-muted text-muted-foreground text-xs font-normal"
-                  }>
-                    {offer.converted ? (
-                      <div className="flex items-center">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        <span>Converted</span>
-                        {conversionLag && (
-                          <span className="ml-1 flex items-center">
-                            {conversionLag.icon}
-                            <span className="ml-0.5">{conversionLag.text}</span>
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <><X className="h-3 w-3 mr-1" />Not Converted</>
-                    )}
-                  </Badge>
-                )}
-                
-                {/* Follow-up Badge */}
-                {followupStatus.badge}
-              </div>
-              
-              {/* Notes Preview */}
-              {offer.notes && (
-                <div className="text-xs text-muted-foreground mt-2 line-clamp-2 bg-white/50 dark:bg-black/20 p-2 rounded border border-border/20">
-                  {offer.notes}
+              {/* Info Section */}
+              <div className="text-xs text-muted-foreground space-y-1.5">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="flex items-center gap-1">
+                    <CaseLink caseNumber={offer.caseNumber} iconSize={3} />
+                  </span>
+                  
+                  <span className="flex items-center gap-1">
+                    {getChannelIcon()}
+                    <span>{offer.channel}</span>
+                  </span>
+                  
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    <span>{formattedDate} • {formattedTime}</span>
+                  </span>
                 </div>
-              )}
+                
+                {/* Status Badges */}
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {/* CSAT Badge */}
+                  {offer.csat && (
+                    <Badge className={`
+                      text-xs font-normal
+                      ${offer.csat === 'positive' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 
+                       offer.csat === 'neutral' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' : 
+                       'bg-rose-500/20 text-rose-600 dark:text-rose-400'}
+                    `}>
+                      {offer.csat === 'positive' ? (
+                        <><ThumbsUp className="h-3 w-3 mr-1" /> Positive</>
+                      ) : offer.csat === 'neutral' ? (
+                        <><Minus className="h-3 w-3 mr-1" /> Neutral</>
+                      ) : (
+                        <><ThumbsDown className="h-3 w-3 mr-1" /> Negative</>
+                      )}
+                    </Badge>
+                  )}
+                  
+                  {/* Conversion Badge */}
+                  {offer.converted !== undefined && (
+                    <Badge className={offer.converted 
+                      ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/30 text-xs font-normal"
+                      : "bg-muted text-muted-foreground text-xs font-normal"
+                    }>
+                      {offer.converted ? (
+                        <div className="flex items-center">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          <span>Converted</span>
+                          {conversionLag && (
+                            <span className="ml-1 flex items-center">
+                              {conversionLag.icon}
+                              <span className="ml-0.5">{conversionLag.text}</span>
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <><X className="h-3 w-3 mr-1" />Not Converted</>
+                      )}
+                    </Badge>
+                  )}
+                  
+                  {/* Follow-up Badge */}
+                  {followupStatus !== 'none' && (
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs py-0 h-5 px-1.5 flex items-center gap-1"
+                    >
+                      {followupIcon}
+                      <span>{followupLabel}</span>
+                      {activeFollowupDate && followupStatus !== 'completed' && (
+                        <span className="ml-1">
+                          {format(parseISO(activeFollowupDate), "MMM d")}
+                        </span>
+                      )}
+                    </Badge>
+                  )}
+                </div>
+                
+                {/* Notes Preview */}
+                {offer.notes && (
+                  <div className="text-xs text-muted-foreground mt-2 line-clamp-2 bg-white/50 dark:bg-black/20 p-2 rounded border border-border/20">
+                    {offer.notes}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-1 mt-3">
-          {/* CSAT Quick Actions */}
-          <TooltipProvider>
+          
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-1 mt-3">
+            {/* CSAT Quick Actions */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
@@ -284,9 +497,7 @@ export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
                 <p>Positive CSAT</p>
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
+            
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
@@ -305,14 +516,12 @@ export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
                 <p>Negative CSAT</p>
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-          
-          {/* Conversion Quick Toggle */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Popover>
-                  <PopoverTrigger asChild>
+            
+            {/* Conversion Quick Toggle */}
+            <Popover open={showConversionDate} onOpenChange={setShowConversionDate}>
+              <Tooltip>
+                <PopoverTrigger asChild>
+                  <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -327,105 +536,131 @@ export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
                         <ShoppingCart className="h-3.5 w-3.5" />
                       )}
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-2" align="end">
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`h-7 px-2 ${offer.converted ? 'bg-blue-500/20 text-blue-500' : 'bg-secondary'}`}
-                          onClick={() => handleConversionChange(true)}
-                        >
-                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                          Converted
-                        </Button>
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`h-7 px-2 ${!offer.converted ? 'bg-muted text-muted-foreground' : 'bg-secondary'}`}
-                          onClick={() => handleConversionChange(false)}
-                        >
-                          <X className="h-3.5 w-3.5 mr-1" />
-                          Not Converted
-                        </Button>
-                      </div>
-                      
-                      {offer.converted && (
-                        <div className="pt-2 border-t border-border/30">
-                          <div className="text-xs text-muted-foreground mb-1">Conversion Date:</div>
-                          <CalendarComponent
-                            mode="single"
-                            selected={offer.conversionDate ? new Date(offer.conversionDate) : undefined}
-                            onSelect={handleConversionDateChange}
-                            disabled={(date) => date > new Date()}
-                            className="pointer-events-auto"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </TooltipTrigger>
-              <TooltipContent>
-                {offer.converted ? "Update conversion" : "Mark as converted"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                  </TooltipTrigger>
+                </PopoverTrigger>
+                <TooltipContent>
+                  {offer.converted ? "Update conversion" : "Mark as converted"}
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent className="w-auto p-0" align="end">
+                <CalendarComponent
+                  mode="single"
+                  selected={offer.conversionDate ? new Date(offer.conversionDate) : undefined}
+                  disabled={(date) => {
+                    const offerDate = new Date(offer.date);
+                    offerDate.setHours(0, 0, 0, 0);
+                    return date < offerDate;
+                  }}
+                  onSelect={(date: Date | null) => {
+                    if (date) {
+                      const offerDate = new Date(offer.date);
+                      offerDate.setHours(0, 0, 0, 0);
+                      const selectedDate = new Date(date);
+                      selectedDate.setHours(0, 0, 0, 0);
 
-          {/* Follow-up Quick Action */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Popover>
-                  <PopoverTrigger asChild>
+                      if (selectedDate < offerDate) {
+                        toast({
+                          title: "Invalid Date",
+                          description: "Cannot convert an offer before its creation date",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+
+                      updateOffer(offer.id, { 
+                        converted: true,
+                        conversionDate: date.toISOString().split('T')[0] 
+                      });
+                      toast({
+                        title: "Offer Converted",
+                        description: `Conversion date set to ${format(date, "PPP")}`,
+                      });
+                    } else {
+                      updateOffer(offer.id, { 
+                        converted: false,
+                        conversionDate: undefined 
+                      });
+                      toast({
+                        title: "Conversion Removed",
+                        description: "Offer marked as not converted",
+                      });
+                    }
+                    setShowConversionDate(false);
+                    onUpdate?.();
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            {/* Follow-up Quick Action */}
+            <Popover>
+              <Tooltip>
+                <PopoverTrigger asChild>
+                  <TooltipTrigger asChild>
                     <Button 
                       variant="ghost" 
                       size="icon"
                       className={`h-8 w-8 rounded-full ${
-                        isFollowupOverdue() ? 'bg-rose-500/20 text-rose-500' :
-                        isFollowupDueToday() ? 'bg-amber-500/20 text-amber-500' :
-                        offer.followupDate ? 'bg-blue-500/20 text-blue-500' : 
+                        shouldShowFollowupDialog() ? 'bg-rose-500/20 text-rose-500' :
+                        hasActiveFollowup(offer) ? 'bg-blue-500/20 text-blue-500' : 
+                        offer.followups?.some(f => f.completed) ? 'bg-green-500/20 text-green-500' :
                         'bg-secondary/50'
                       }`}
                     >
                       <CalendarClock className="h-3.5 w-3.5" />
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <div className="p-2">
-                      <CalendarComponent
-                        mode="single"
-                        selected={offer.followupDate ? new Date(offer.followupDate) : undefined}
-                        onSelect={handleFollowupDateChange}
-                        disabled={(date) => date < new Date()}
-                        className="pointer-events-auto"
-                      />
-                      {offer.followupDate && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground"
-                          onClick={() => handleFollowupDateChange(undefined)}
-                        >
-                          Clear follow-up date
-                        </Button>
-                      )}
+                  </TooltipTrigger>
+                </PopoverTrigger>
+                <TooltipContent>
+                  {offer.followups?.some(f => f.completed) 
+                    ? "View followup history" 
+                    : hasActiveFollowup(offer) 
+                      ? "Update followup date" 
+                      : "Set followup date"}
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent className="w-auto p-0" align="end">
+                <div className="p-2 border-b border-border">
+                  <h3 className="text-sm font-medium flex items-center">
+                    <CalendarClock className="h-3.5 w-3.5 mr-1 text-blue-500" />
+                    {hasActiveFollowup(offer) ? "Update Followup" : "Schedule Followup"}
+                  </h3>
+                  {offer.followups?.some(f => f.completed) && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      This offer has {offer.followups.filter(f => f.completed).length} completed followup(s)
                     </div>
-                  </PopoverContent>
-                </Popover>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isFollowupOverdue() ? "Overdue follow-up" : 
-                 isFollowupDueToday() ? "Due today" : 
-                 offer.followupDate ? "Update follow-up" : "Set follow-up"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          {/* Details Button */}
-          <TooltipProvider>
+                  )}
+                </div>
+                <CalendarComponent
+                  mode="single"
+                  selected={getActiveFollowupDate(offer) ? new Date(getActiveFollowupDate(offer)!) : undefined}
+                  onSelect={(date: Date | null) => {
+                    handleFollowupDateChange(date || undefined);
+                  }}
+                  disabled={(date) => {
+                    // Don't allow dates in the past
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return date < today;
+                  }}
+                  initialFocus
+                />
+                {hasActiveFollowup(offer) && (
+                  <div className="p-2 border-t border-border flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleFollowupDateChange(undefined)}
+                    >
+                      Clear Followup
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -442,14 +677,17 @@ export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
                 <p>View details</p>
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
+          </div>
         </div>
-      </div>
-      
+      </Card>
+
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Offer Details</DialogTitle>
+            <DialogDescription>
+              View and edit offer details including CSAT rating, conversion status, and follow-up information.
+            </DialogDescription>
           </DialogHeader>
           <OfferDetails 
             offer={offer} 
@@ -461,6 +699,6 @@ export const OfferItem = React.memo(({ offer, onUpdate }: OfferItemProps) => {
           />
         </DialogContent>
       </Dialog>
-    </Card>
+    </TooltipProvider>
   );
 });

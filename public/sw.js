@@ -1,4 +1,4 @@
-// Service Worker for JV Offer Tracker
+// Service Worker for JV Offer Tracker - Offline Only Version
 const CACHE_NAME = 'jv-offer-tracker-v1';
 const urlsToCache = [
   '/',
@@ -7,7 +7,7 @@ const urlsToCache = [
   '/assets/index.js',
 ];
 
-// Install service worker
+// Install service worker and cache initial resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -17,36 +17,25 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Cache and return requests
+// Only serve from cache, no network requests
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Cache hit - return response
+        // Return cached response if available
         if (response) {
           return response;
         }
-        return fetch(event.request).then(
-          (response) => {
-            // Check if we received a valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone the response as it can only be consumed once
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                // Don't cache API requests or other dynamic data
-                if (!event.request.url.includes('/api/')) {
-                  cache.put(event.request, responseToCache);
-                }
-              });
-
-            return response;
-          }
-        );
+        
+        // For non-cached resources, return a simple offline response
+        // instead of making a network request
+        return new Response('Offline content not available', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: new Headers({
+            'Content-Type': 'text/plain'
+          })
+        });
       })
   );
 });

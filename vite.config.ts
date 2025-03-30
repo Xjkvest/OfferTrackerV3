@@ -8,8 +8,9 @@ import { visualizer } from 'rollup-plugin-visualizer';
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 5173,
   },
+  base: mode === 'production' ? './' : '/',
   plugins: [
     react(),
     mode === 'development' &&
@@ -27,6 +28,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    outDir: 'dist',
     rollupOptions: {
       output: {
         manualChunks: {

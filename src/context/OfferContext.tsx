@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, ReactNode } from 'react';
 import { toast } from "@/hooks/use-toast";
 import { useUser } from './UserContext';
 import { storageService } from '@/utils/storageService';
-import { parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { parseISO, isWithinInterval, startOfDay, endOfDay, differenceInDays } from "date-fns";
+import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
+import { calculateEnhancedStreak, StreakInfo } from '@/utils/streakCalculation';
 
 export interface Offer {
   id: string;
@@ -16,6 +19,17 @@ export interface Offer {
   converted?: boolean;
   conversionDate?: string;
   followupDate?: string;
+  followups?: FollowupItem[];
+  isConverted?: boolean;
+  csatScore?: number;
+}
+
+export interface FollowupItem {
+  id: string;
+  date: string;
+  notes?: string;
+  completed: boolean;
+  completedAt?: string;
 }
 
 type NewOffer = Omit<Offer, 'id' | 'date'>;
@@ -37,29 +51,72 @@ interface OfferContextType {
   ) => Offer[];
   checkFollowups: () => void;
   streak: number;
+  streakInfo: StreakInfo;
   isLoading: boolean;
 }
 
 const OfferContext = createContext<OfferContextType | undefined>(undefined);
 
-export const OfferProvider = ({ children }: { children: React.ReactNode }) => {
-  const { addNotification } = useUser();
+interface OfferProviderProps {
+  children: ReactNode;
+}
+
+export const OfferProvider: React.FC<OfferProviderProps> = ({ children }) => {
+  const { addNotification, userName, settings } = useUser();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Function to check if an offer should be marked as not converted based on 30-day rule
+  const checkConversionStatus = (offer: Offer): Partial<Offer> => {
+    if (offer.converted === undefined) {
+      const offerDate = parseISO(offer.date);
+      const today = new Date();
+      const daysSinceOffer = differenceInDays(today, offerDate);
+      
+      if (daysSinceOffer > 30) {
+        return {
+          converted: false,
+          conversionDate: undefined
+        };
+      }
+    }
+    return {};
+  };
+
+  // Function to update offers with automatic conversion status
+  const updateOffersWithConversionStatus = (offers: Offer[]): Offer[] => {
+    return offers.map(offer => {
+      const updates = checkConversionStatus(offer);
+      return updates.converted !== undefined ? { ...offer, ...updates } : offer;
+    });
+  };
 
   // Load offers from IndexedDB on initial render
   useEffect(() => {
     const loadOffers = async () => {
       setIsLoading(true);
       try {
-        const savedOffers = await storageService.getOffers();
-        setOffers(savedOffers);
+        const storedOffers = await storageService.getOffers();
+        if (storedOffers) {
+          // Check conversion status when loading offers
+          const updatedOffers = updateOffersWithConversionStatus(storedOffers);
+          
+          // Migrate legacy followup dates to the new structure
+          const migratedOffers = migrateFollowupDates(updatedOffers);
+          
+          setOffers(migratedOffers);
+          
+          // Save any automatic updates back to storage
+          if (JSON.stringify(storedOffers) !== JSON.stringify(migratedOffers)) {
+            await storageService.saveOffers(migratedOffers);
+          }
+        }
       } catch (error) {
         console.error('Error loading offers:', error);
         toast({
-          title: 'Error',
-          description: 'Failed to load your offers data.',
-          variant: 'destructive',
+          title: "Error loading offers",
+          description: "There was a problem loading your offers. Please try again.",
+          variant: "destructive",
         });
       } finally {
         setIsLoading(false);
@@ -85,7 +142,37 @@ export const OfferProvider = ({ children }: { children: React.ReactNode }) => {
     const today = new Date().toISOString().split('T')[0];
     
     offers.forEach(offer => {
-      if (offer.followupDate) {
+      // Check active followups in the new structure
+      if (offer.followups?.length > 0) {
+        // Find incomplete followups
+        const activeFollowups = offer.followups.filter(f => !f.completed);
+        
+        // For each active followup that is due today or overdue
+        activeFollowups.forEach(followup => {
+          const isOverdue = followup.date < today;
+          const isDueToday = followup.date === today;
+          
+          if (isOverdue || isDueToday) {
+            const currentHour = new Date().getHours();
+            const notificationId = `followup-${offer.id}-${followup.id}-hour-${currentHour}`;
+            
+            addNotification({
+              id: notificationId,
+              title: isOverdue 
+                ? `Overdue Followup: ${offer.offerType}`
+                : `Followup Reminder: ${offer.offerType}`,
+              message: `Case #${offer.caseNumber}: ${followup.notes || offer.notes?.substring(0, 100) || 'No notes'}`,
+              offerId: offer.id,
+              timestamp: new Date().getTime(),
+              read: false,
+              isOverdue: isOverdue,
+              isUrgent: true,
+            });
+          }
+        });
+      }
+      // Fallback to legacy followupDate field if no followups array or empty array
+      else if (offer.followupDate) {
         const isOverdue = offer.followupDate < today;
         const isDueToday = offer.followupDate === today;
         
@@ -110,50 +197,11 @@ export const OfferProvider = ({ children }: { children: React.ReactNode }) => {
     });
   }, [offers, addNotification]);
 
-  const streak = useMemo(() => {
-    if (!offers.length) return 0;
-    
-    const sortedOffers = [...offers].sort((a, b) => {
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
-    });
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const hasOfferToday = sortedOffers.some(offer => {
-      const offerDate = new Date(offer.date);
-      offerDate.setHours(0, 0, 0, 0);
-      return offerDate.getTime() === today.getTime();
-    });
-    
-    if (!hasOfferToday && new Date().getHours() >= 20) {
-      return 0;
-    }
-    
-    let currentStreak = hasOfferToday ? 1 : 0;
-    let previousDate = hasOfferToday ? yesterday : today;
-    
-    for (let i = 0; i < sortedOffers.length; i++) {
-      const offerDate = new Date(sortedOffers[i].date);
-      offerDate.setHours(0, 0, 0, 0);
-      
-      if (offerDate.getTime() === previousDate.getTime()) {
-        if (!hasOfferToday || i > 0) currentStreak++;
-        previousDate = new Date(previousDate);
-        previousDate.setDate(previousDate.getDate() - 1);
-      } else if (offerDate.getTime() < previousDate.getTime()) {
-        previousDate = offerDate;
-        if (!hasOfferToday || i > 0) currentStreak++;
-        previousDate = new Date(previousDate);
-        previousDate.setDate(previousDate.getDate() - 1);
-      }
-    }
-    
-    return currentStreak;
-  }, [offers]);
+  const streakInfo = useMemo(() => {
+    return calculateEnhancedStreak(offers, settings.streakSettings);
+  }, [offers, settings.streakSettings]);
+  
+  const streak = streakInfo.current;
 
   const addOffer = async (offer: NewOffer) => {
     const newOffer: Offer = {
@@ -170,26 +218,56 @@ export const OfferProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const updateOffer = async (id: string, updates: Partial<Offer>) => {
-    setOffers(prev => 
-      prev.map(offer => {
-        if (offer.id === id) {
-          if (updates.converted === true && !updates.conversionDate && !offer.conversionDate) {
-            updates.conversionDate = new Date().toISOString().split('T')[0];
-          }
-          
-          if (updates.converted === false) {
-            updates.conversionDate = undefined;
-          }
-          
-          return { ...offer, ...updates };
-        }
-        return offer;
-      })
-    );
+    // Make a deep copy of the updates to avoid any reference issues
+    const updatesCopy = JSON.parse(JSON.stringify(updates));
     
-    toast({
-      title: "Offer updated",
-      description: "Your offer has been successfully updated.",
+    return new Promise<void>((resolve, reject) => {
+      try {
+        setOffers(prev => {
+          // Create a completely new array (important for React state updates)
+          const updatedOffers = prev.map(offer => {
+            if (offer.id === id) {
+              // Handle conversion date logic
+              if (updatesCopy.converted === true && !updatesCopy.conversionDate && !offer.conversionDate) {
+                updatesCopy.conversionDate = new Date().toISOString().split('T')[0];
+              }
+              
+              if (updatesCopy.converted === false) {
+                updatesCopy.conversionDate = undefined;
+              }
+              
+              // Create a completely new object with spread
+              const newOffer = { ...offer, ...updatesCopy };
+              return newOffer;
+            }
+            return offer;
+          });
+          
+          // Return a new array with conversion status updates
+          return updateOffersWithConversionStatus(updatedOffers);
+        });
+        
+        // Show success toast
+        toast({
+          title: "Offer updated",
+          description: "Your offer has been successfully updated.",
+        });
+        
+        // Resolve the promise after update
+        resolve();
+      } catch (error) {
+        console.error('Error updating offer:', error);
+        
+        // Show error toast
+        toast({
+          title: "Update failed",
+          description: "There was a problem updating your offer. Please try again.",
+          variant: "destructive",
+        });
+        
+        // Reject the promise with the error
+        reject(error);
+      }
     });
   };
 
@@ -233,6 +311,61 @@ export const OfferProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
+  // Function to migrate legacy followupDate to the new followups array structure
+  const migrateFollowupDates = (offers: Offer[]): Offer[] => {
+    return offers.map(offer => {
+      // Only migrate if there's a followupDate but no followups array
+      if (offer.followupDate && (!offer.followups || offer.followups.length === 0)) {
+        console.log(`Migrating legacy followupDate for offer ${offer.id}`);
+        
+        // Create a new followup item
+        const followupItem: FollowupItem = {
+          id: `migrated-${Date.now()}-${offer.id}`,
+          date: offer.followupDate,
+          notes: offer.notes,
+          completed: false
+        };
+        
+        // Return updated offer with the followups array
+        return {
+          ...offer,
+          followups: [followupItem]
+          // Keep the legacy followupDate for backward compatibility
+        };
+      }
+      
+      // If there are both followupDate and followups array, ensure they're in sync
+      if (offer.followupDate && offer.followups && offer.followups.length > 0) {
+        // Check if all followups are completed
+        const allCompleted = offer.followups.every(f => f.completed);
+        
+        if (allCompleted) {
+          // Clear the legacy followupDate if all followups are completed
+          return {
+            ...offer,
+            followupDate: undefined
+          };
+        }
+        
+        // Find the earliest incomplete followup
+        const incompleteFollowups = offer.followups.filter(f => !f.completed);
+        if (incompleteFollowups.length > 0) {
+          const earliestFollowup = [...incompleteFollowups].sort(
+            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+          )[0];
+          
+          // Update the legacy followupDate to match the earliest incomplete followup
+          return {
+            ...offer,
+            followupDate: earliestFollowup.date
+          };
+        }
+      }
+      
+      return offer;
+    });
+  };
+
   return (
     <OfferContext.Provider
       value={{
@@ -244,6 +377,7 @@ export const OfferProvider = ({ children }: { children: React.ReactNode }) => {
         getFilteredOffers,
         checkFollowups,
         streak,
+        streakInfo,
         isLoading
       }}
     >
@@ -252,10 +386,14 @@ export const OfferProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export function useOffers() {
+// Extract the hook to a separate variable before exporting for better compatibility with Fast Refresh
+const useOffersHook = () => {
   const context = useContext(OfferContext);
   if (context === undefined) {
     throw new Error('useOffers must be used within an OfferProvider');
   }
   return context;
-}
+};
+
+// Export the hook
+export const useOffers = useOffersHook;

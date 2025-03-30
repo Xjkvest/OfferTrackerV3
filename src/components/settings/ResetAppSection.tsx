@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { useUser } from "@/context/UserContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,14 +24,29 @@ export function ResetAppSection() {
   const [confirmText, setConfirmText] = useState("");
   const confirmInputRef = useRef<HTMLInputElement>(null);
   
-  const handleConfirmReset = () => {
+  const handleConfirmReset = async () => {
     if (confirmText === "RESET") {
-      resetAppData();
-      setIsOpen(false);
-      toast({
-        title: "Application Reset",
-        description: "All data has been deleted successfully.",
-      });
+      try {
+        toast({
+          title: "Resetting Application",
+          description: "Please wait while your data is being reset...",
+        });
+        
+        await resetAppData();
+        setIsOpen(false);
+        
+        toast({
+          title: "Application Reset",
+          description: "All data has been deleted successfully.",
+        });
+      } catch (error) {
+        console.error("Error resetting application data:", error);
+        toast({
+          title: "Reset Failed",
+          description: "There was a problem resetting your data. Please try again.",
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "Reset Cancelled",

@@ -34,6 +34,7 @@ import {
   ReferenceLine,
   Line
 } from 'recharts';
+import { getDayName } from "@/utils/streakCalculation";
 
 // Define a type for the chart data items
 interface ChartDataItem {
@@ -49,6 +50,7 @@ interface ChartDataItem {
   isExceptional: boolean;
   isRecord: boolean;
   dayOfWeek: number;
+  isWorkday: boolean;
 }
 
 // Custom tooltip component
@@ -138,8 +140,8 @@ const CustomTooltip = ({ active, payload, label, theme }: any) => {
 };
 
 export const MonthlyGoalSummary = () => {
-  const { offers, streak } = useOffers();
-  const { dailyGoal } = useUser();
+  const { offers, streak, streakInfo } = useOffers();
+  const { dailyGoal, settings } = useUser();
   const [showPrevMonth, setShowPrevMonth] = useState(false);
   const [adjustedGoal, setAdjustedGoal] = useState(dailyGoal);
   
@@ -175,23 +177,92 @@ export const MonthlyGoalSummary = () => {
   
   const offerCount = offersThisMonth.length;
   
-  // Calculate goal metrics
+  // Calculate goal metrics with workday awareness
   const daysInMonth = getDaysInMonth(currentMonth, currentYear);
-  const daysPassedInMonth = getDaysPassedInCurrentMonth();
-  const monthlyGoal = dailyGoal * daysInMonth;
-  const currentExpectedGoal = dailyGoal * daysPassedInMonth;
-  const adjustedMonthlyGoal = adjustedGoal * daysInMonth;
+  const totalDaysPassedInMonth = getDaysPassedInCurrentMonth();
+
+  // Apply workday settings if enabled
+  const useWorkdaySettings = settings?.streakSettings?.countWorkdaysOnly;
+  const workdays = settings?.streakSettings?.workdays || [1, 2, 3, 4, 5]; // Default to weekdays if not specified
   
-  // Calculate progress percentage
-  const goalProgress = Math.min(100, Math.round((offerCount / currentExpectedGoal) * 100) || 0);
+  // Calculate workdays in month and workdays passed
+  const workdaysInMonth = useWorkdaySettings ? 
+    Array.from({length: daysInMonth}, (_, i) => (new Date(currentYear, currentMonth, i + 1).getDay()))
+      .filter(day => workdays.includes(day)).length : 
+    daysInMonth;
+  
+  const workdaysPassedInMonth = useWorkdaySettings ?
+    Array.from({length: totalDaysPassedInMonth}, (_, i) => (new Date(currentYear, currentMonth, i + 1).getDay()))
+      .filter(day => workdays.includes(day)).length :
+    totalDaysPassedInMonth;
+  
+  // Use appropriate day count based on settings
+  const daysPassedInMonth = useWorkdaySettings ? workdaysPassedInMonth : totalDaysPassedInMonth;
+  const effectiveDaysInMonth = useWorkdaySettings ? workdaysInMonth : daysInMonth;
+  
+  // Calculate goals based on effective days
+  const monthlyGoal = dailyGoal * effectiveDaysInMonth;
+  const currentExpectedGoal = dailyGoal * daysPassedInMonth;
+  const adjustedMonthlyGoal = adjustedGoal * effectiveDaysInMonth;
+  
+  // Calculate progress percentage (allow exceeding 100% for display purposes)
+  const rawGoalProgress = currentExpectedGoal > 0 ? (offerCount / currentExpectedGoal) * 100 : 0;
+  const goalProgress = Math.round(rawGoalProgress || 0);
+  
+  // Calculate adjusted progress percentage for comparison
+  const adjustedRawGoalProgress = (adjustedGoal * daysPassedInMonth) > 0 
+    ? (offerCount / (adjustedGoal * daysPassedInMonth)) * 100 
+    : 0;
+  const adjustedGoalProgress = Math.round(adjustedRawGoalProgress || 0);
   
   // Calculate how many more offers are needed to catch up
   const isAhead = offerCount >= currentExpectedGoal;
   const difference = Math.abs(offerCount - currentExpectedGoal);
   
-  // Generate chart data with enhanced features
+  // Calculate how many more offers are needed to catch up to adjusted goal
+  const isAheadAdjusted = offerCount >= (adjustedGoal * daysPassedInMonth);
+  const differenceAdjusted = Math.abs(offerCount - (adjustedGoal * daysPassedInMonth));
+  
+  // Function to determine if a value is an outlier (more than 2 standard deviations from mean)
+  const isOutlier = (value: number, mean: number, stdDev: number): boolean => {
+    return Math.abs(value - mean) > stdDev * 2;
+  };
+  
+  // Get day-of-week performance for better forecasting
+  const dayOfWeekPerformance = useMemo(() => {
+    // Create a Map to store performance by day of week
+    const performanceByDay = new Map(
+      [0, 1, 2, 3, 4, 5, 6].map(day => [day, { count: 0, days: 0, average: 0 }])
+    );
+    
+    // Get the last 90 days of offers for a reliable sample
+    const now = new Date();
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    // Analyze offers by day of week
+    offers.forEach(offer => {
+      const offerDate = new Date(offer.date);
+      if (offerDate >= ninetyDaysAgo && offerDate <= now) {
+        const dayOfWeek = offerDate.getDay();
+        const dayStats = performanceByDay.get(dayOfWeek)!;
+        dayStats.count++;
+        
+        // Count the number of each day of week in the period
+        const days = eachDayOfInterval({ start: ninetyDaysAgo, end: now })
+          .filter(date => date.getDay() === dayOfWeek).length;
+        
+        dayStats.days = days;
+        dayStats.average = days > 0 ? dayStats.count / days : 0;
+      }
+    });
+    
+    return performanceByDay;
+  }, [offers]);
+  
+  // Generate chart data with enhanced features and forecasting
   const generateChartData = useMemo(() => {
-    const days = eachDayOfInterval({ start: startOfCurrentMonth, end: currentDate });
+    const days = eachDayOfInterval({ start: startOfCurrentMonth, end: endOfCurrentMonth });
     const prevMonthDays = showPrevMonth ? 
       eachDayOfInterval({ 
         start: startOfPrevMonth, 
@@ -203,11 +274,52 @@ export const MonthlyGoalSummary = () => {
     let currentStreakStart = null;
     let currentStreakLength = 0;
     
+    // Convert offers to a map for faster lookup
+    const offersByDate = new Map();
+    offers.forEach(offer => {
+      const dateStr = offer.date.split('T')[0];
+      if (!offersByDate.has(dateStr)) {
+        offersByDate.set(dateStr, []);
+      }
+      offersByDate.get(dateStr).push(offer);
+    });
+    
+    // Calculate average and standard deviation of offers per day
+    // (for outlier detection and more accurate forecasting)
+    const offerCounts = [];
+    days.forEach(day => {
+      if (day > currentDate) return; // Only include past days
+      
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const dayOffers = offersByDate.get(dateStr) || [];
+      offerCounts.push(dayOffers.length);
+    });
+    
+    // Calculate statistics
+    const offersMean = offerCounts.length > 0 
+      ? offerCounts.reduce((sum, count) => sum + count, 0) / offerCounts.length 
+      : 0;
+    
+    const offersStdDev = offerCounts.length > 0
+      ? Math.sqrt(
+          offerCounts.reduce((sum, count) => sum + Math.pow(count - offersMean, 2), 0) / offerCounts.length
+        )
+      : 0;
+    
+    // Determine if a value is an outlier (more than 2 standard deviations from mean)
+    const isOutlier = (value: number) => {
+      return Math.abs(value - offersMean) > offersStdDev * 2;
+    };
+    
     const result: ChartDataItem[] = days.map(day => {
       const dateStr = format(day, 'yyyy-MM-dd');
-      const dayOffers = offers.filter(offer => offer.date.split('T')[0] === dateStr);
+      const dayOffers = offersByDate.get(dateStr) || [];
       const offersCount = dayOffers.length;
       const dayNum = parseInt(format(day, 'd'), 10);
+      const dayOfWeek = day.getDay();
+      
+      // Check if this is a workday if work day settings are enabled
+      const isWorkday = !useWorkdaySettings || workdays.includes(dayOfWeek);
       
       // Find corresponding previous month day if available
       let prevMonthOffersCount = null;
@@ -215,19 +327,22 @@ export const MonthlyGoalSummary = () => {
         const prevMonthDay = prevMonthDays.find(d => parseInt(format(d, 'd'), 10) === dayNum);
         if (prevMonthDay) {
           const prevDateStr = format(prevMonthDay, 'yyyy-MM-dd');
-          const prevDayOffers = offers.filter(offer => offer.date.split('T')[0] === prevDateStr);
+          const prevDayOffers = offersByDate.get(prevDateStr) || [];
           prevMonthOffersCount = prevDayOffers.length;
         }
       }
       
-      // Calculate streak information
-      const metGoal = offersCount >= dailyGoal;
+      // Calculate streak information - only consider workdays if enabled
+      const shouldCountForStreak = isWorkday || !useWorkdaySettings;
+      const effectiveGoal = shouldCountForStreak ? dailyGoal : 0;
+      const metGoal = shouldCountForStreak ? offersCount >= effectiveGoal : false;
+      
       if (metGoal) {
         if (currentStreakStart === null) {
           currentStreakStart = dayNum;
         }
         currentStreakLength++;
-      } else {
+      } else if (day <= currentDate) { // Only reset streak for past days
         if (currentStreakLength >= 3) {
           streakPeriods.push({
             start: currentStreakStart,
@@ -239,76 +354,113 @@ export const MonthlyGoalSummary = () => {
       }
       
       // Add achievement markers
-      const isExceptional = offersCount >= dailyGoal * 1.5;
-      const isRecord = offersCount > 0 && dayOffers.length === Math.max(...days.map(d => {
-        const dStr = format(d, 'yyyy-MM-dd');
-        return offers.filter(o => o.date.split('T')[0] === dStr).length;
-      }));
+      const isExceptional = shouldCountForStreak && offersCount >= dailyGoal * 1.5;
+      const isRecord = offersCount > 0 && 
+        offersCount === Math.max(...days
+          .filter(d => d <= currentDate)
+          .map(d => {
+            const dStr = format(d, 'yyyy-MM-dd');
+            return (offersByDate.get(dStr) || []).length;
+          }));
+      
+      // Generate forecast for future days based on day-of-week performance
+      let forecast = undefined;
+      if (day > currentDate) {
+        const dayStats = dayOfWeekPerformance.get(dayOfWeek)!;
+        
+        // Use day-of-week average if available, fallback to overall average
+        if (dayStats.days >= 3) { // Require at least 3 samples for reliable average
+          forecast = dayStats.average;
+        } else {
+          // Use the overall daily average when not enough data
+          const pastDays = days.filter(d => d <= currentDate);
+          const pastDaysCount = pastDays.length;
+          
+          if (pastDaysCount > 0) {
+            const totalOffers = pastDays.reduce((sum, d) => {
+              const dStr = format(d, 'yyyy-MM-dd');
+              return sum + (offersByDate.get(dStr) || []).length;
+            }, 0);
+            
+            forecast = totalOffers / pastDaysCount;
+          } else {
+            forecast = 0;
+          }
+        }
+        
+        // Adjust forecast based on workday settings
+        if (useWorkdaySettings && !isWorkday) {
+          forecast = Math.min(forecast * 0.4, 1); // Non-workdays typically see 40% or less activity
+        }
+      }
       
       return {
         date: format(day, 'd'),
         dayNum,
-        offers: offersCount,
-        goal: dailyGoal,
-        adjustedGoal: adjustedGoal,
+        offers: day <= currentDate ? offersCount : undefined,
+        goal: isWorkday ? dailyGoal : 0, // Only show goal line for workdays
+        adjustedGoal: isWorkday ? adjustedGoal : 0,
         prevMonth: prevMonthOffersCount,
         isToday: isToday(day),
+        forecast,
         metGoal,
         isExceptional,
         isRecord,
-        dayOfWeek: getDay(day)
+        dayOfWeek,
+        isWorkday
       };
     });
     
-    // Add the current streak if it's long enough
-    if (currentStreakLength >= 3) {
-      streakPeriods.push({
-        start: currentStreakStart,
-        length: currentStreakLength
-      });
-    }
-    
-    // Calculate forecast data if we're not at month end
-    if (daysPassedInMonth < daysInMonth) {
-      // Calculate average of last 7 days or available days
-      const recentDays = Math.min(7, result.length);
-      const recentData = result.slice(-recentDays);
-      const recentAvg = recentData.reduce((sum, day) => sum + day.offers, 0) / recentDays;
-      
-      // Create forecast for remaining days
-      const forecastDays = eachDayOfInterval({ 
-        start: addDays(currentDate, 1), 
-        end: endOfCurrentMonth 
-      });
-      
-      forecastDays.forEach(day => {
-        result.push({
-          date: format(day, 'd'),
-          dayNum: parseInt(format(day, 'd'), 10),
-          offers: undefined,
-          goal: dailyGoal,
-          adjustedGoal: adjustedGoal,
-          prevMonth: null,
-          isToday: false,
-          forecast: recentAvg,
-          metGoal: false,
-          isExceptional: false,
-          isRecord: false,
-          dayOfWeek: getDay(day)
-        });
-      });
-    }
-    
     return { chartData: result, streakPeriods };
-  }, [offers, dailyGoal, adjustedGoal, showPrevMonth, currentDate, daysInMonth, daysPassedInMonth, startOfCurrentMonth, endOfCurrentMonth, startOfPrevMonth, endOfPrevMonth]);
-
+  }, [offers, dailyGoal, adjustedGoal, showPrevMonth, currentDate, workdays, useWorkdaySettings, dayOfWeekPerformance]);
+  
   const { chartData, streakPeriods } = generateChartData;
   
-  // Calculate performance metrics
-  const daysMetGoal = chartData.filter(d => d.metGoal).length;
-  const successRate = daysPassedInMonth > 0 ? Math.round((daysMetGoal / daysPassedInMonth) * 100) : 0;
+  // Calculate performance metrics with improved accuracy
+  const workdaysWithData = chartData
+    .filter(d => d.dayNum <= currentDate.getDate() && (d.isWorkday || !useWorkdaySettings));
   
-  // Find milestones
+  const daysWithData = workdaysWithData.length;
+  const daysMetGoal = workdaysWithData.filter(d => d.metGoal).length;
+  const successRate = daysWithData > 0 ? Math.round((daysMetGoal / daysWithData) * 100) : 0;
+  
+  // Calculate more accurate forecasting
+  const pastDays = chartData.filter(d => d.dayNum <= currentDate.getDate());
+  const futureDays = chartData.filter(d => d.dayNum > currentDate.getDate());
+  const futureWorkdays = futureDays.filter(d => d.isWorkday || !useWorkdaySettings);
+  
+  // Calculate current performance statistics excluding outliers
+  const dailyOfferCounts = pastDays.map(d => d.offers || 0);
+  const offersMean = dailyOfferCounts.length > 0
+    ? dailyOfferCounts.reduce((sum, count) => sum + count, 0) / dailyOfferCounts.length
+    : 0;
+  
+  const offersStdDev = dailyOfferCounts.length > 0
+    ? Math.sqrt(
+        dailyOfferCounts.reduce((sum, count) => sum + Math.pow(count - offersMean, 2), 0) / dailyOfferCounts.length
+      )
+    : 0;
+  
+  const filteredOfferCounts = dailyOfferCounts.filter(count => !isOutlier(count, offersMean, offersStdDev));
+  
+  const averageDailyOffers = filteredOfferCounts.length > 0
+    ? filteredOfferCounts.reduce((sum, count) => sum + count, 0) / filteredOfferCounts.length
+    : 0;
+  
+  const forecastTotalOffers = offerCount + futureWorkdays.reduce((sum, day) => {
+    // Use day-specific forecast if available
+    return sum + (day.forecast ?? averageDailyOffers);
+  }, 0);
+  
+  const forecastTotal = Math.round(forecastTotalOffers);
+  const onTrackToMeetGoal = forecastTotal >= monthlyGoal;
+  const forecastPercentage = monthlyGoal > 0 ? Math.round((forecastTotal / monthlyGoal) * 100) : 0;
+  
+  // Also calculate forecast against adjusted goal
+  const onTrackToMeetAdjustedGoal = forecastTotal >= adjustedMonthlyGoal;
+  const adjustedForecastPercentage = adjustedMonthlyGoal > 0 ? Math.round((forecastTotal / adjustedMonthlyGoal) * 100) : 0;
+  
+  // Find milestones with improved accuracy
   const milestones = useMemo(() => {
     const milestonesList = [];
     
@@ -323,14 +475,14 @@ export const MonthlyGoalSummary = () => {
     }
     
     // Day with highest performance (if exceptional)
-    const daysWithOffers = chartData.filter(day => day.offers > 0);
+    const daysWithOffers = chartData.filter(day => (day.offers || 0) > 0);
     if (daysWithOffers.length > 0) {
-      const highestDay = [...daysWithOffers].sort((a, b) => b.offers - a.offers)[0];
+      const highestDay = [...daysWithOffers].sort((a, b) => (b.offers || 0) - (a.offers || 0))[0];
       if (highestDay.isExceptional) {
         milestonesList.push({
           day: highestDay.dayNum,
           type: 'highest',
-          label: `Record: ${highestDay.offers} offers (${Math.round(highestDay.offers / dailyGoal * 100)}% of goal)`
+          label: `Record: ${highestDay.offers} offers (${Math.round((highestDay.offers || 0) / dailyGoal * 100)}% of goal)`
         });
       }
     }
@@ -354,19 +506,23 @@ export const MonthlyGoalSummary = () => {
     return milestonesList;
   }, [chartData, monthlyGoal, dailyGoal]);
 
-  // Determine progress color
+  // Determine progress color with more granularity
   const getProgressColor = () => {
-    if (goalProgress >= 200) return "bg-gradient-to-r from-purple-400 to-purple-600";
-    if (goalProgress >= 150) return "bg-gradient-to-r from-blue-400 to-blue-600";
-    if (goalProgress >= 100) return "bg-gradient-to-r from-green-400 to-green-600";
-    if (goalProgress >= 70) return "bg-gradient-to-r from-amber-400 to-amber-600";
+    const progressToUse = adjustedGoal !== dailyGoal ? adjustedGoalProgress : goalProgress;
+    
+    if (progressToUse >= 200) return "bg-gradient-to-r from-purple-400 to-purple-600";
+    if (progressToUse >= 150) return "bg-gradient-to-r from-blue-400 to-blue-600";
+    if (progressToUse >= 100) return "bg-gradient-to-r from-green-400 to-green-600";
+    if (progressToUse >= 80) return "bg-gradient-to-r from-amber-400 to-amber-600";
+    if (progressToUse >= 60) return "bg-gradient-to-r from-orange-400 to-orange-600";
     return "bg-gradient-to-r from-red-400 to-red-600";
   };
   
-  // Calculate if the forecast will meet the monthly goal
-  const forecastTotal = chartData.reduce((total, day) => 
-    total + (day.offers || 0) + (day.forecast || 0), 0);
-  const onTrackToMeetGoal = forecastTotal >= monthlyGoal;
+  // Add a helper to format workdays
+  const formatWorkdays = (days: number[]): string => {
+    if (days.length === 7) return "every day";
+    return days.map(day => getDayName(day, 'short')).join(', ');
+  };
 
   return (
     <Card className="border glass-card border-border/30 bg-gradient-to-br from-card/90 to-card/70">
@@ -408,37 +564,50 @@ export const MonthlyGoalSummary = () => {
             <div className="w-full bg-muted/20 rounded-lg p-3 sm:p-4 relative overflow-hidden border border-border/10">
               <div className="flex flex-col items-center justify-center space-y-3">
                 <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
-                  {goalProgress}%
+                  {adjustedGoal !== dailyGoal ? adjustedGoalProgress : goalProgress}%
                 </div>
                 <div className="w-full h-3 sm:h-4 bg-muted/40 rounded-full overflow-hidden">
                   <div 
                     className={`h-full ${getProgressColor()} transition-all duration-700 ease-in-out`} 
-                    style={{ width: `${Math.min(100, goalProgress)}%` }}
+                    style={{ width: `${Math.min(100, adjustedGoal !== dailyGoal ? adjustedGoalProgress : goalProgress)}%` }}
                   />
                 </div>
                 
                 {/* Progress status indicator */}
                 <div className={`text-xs sm:text-sm font-medium ${
-                  goalProgress >= 100 
-                    ? 'text-green-500' 
-                    : goalProgress >= 70 
-                      ? 'text-amber-500' 
-                      : 'text-red-500'
+                  adjustedGoal !== dailyGoal
+                    ? adjustedGoalProgress >= 100 
+                      ? 'text-green-500' 
+                      : adjustedGoalProgress >= 70 
+                        ? 'text-amber-500' 
+                        : 'text-red-500'
+                    : goalProgress >= 100 
+                      ? 'text-green-500' 
+                      : goalProgress >= 70 
+                        ? 'text-amber-500' 
+                        : 'text-red-500'
                 }`}>
-                  {goalProgress >= 200 ? 'Exceptional!' : 
-                   goalProgress >= 150 ? 'Outstanding!' :
-                   goalProgress >= 100 ? 'On Target' : 
-                   goalProgress >= 70 ? 'Getting Close' : 
-                   'Needs Attention'}
+                  {adjustedGoal !== dailyGoal
+                    ? adjustedGoalProgress >= 200 ? 'Exceptional!' : 
+                      adjustedGoalProgress >= 150 ? 'Outstanding!' :
+                      adjustedGoalProgress >= 100 ? 'On Target' : 
+                      adjustedGoalProgress >= 70 ? 'Getting Close' : 
+                      'Needs Attention'
+                    : goalProgress >= 200 ? 'Exceptional!' : 
+                      goalProgress >= 150 ? 'Outstanding!' :
+                      goalProgress >= 100 ? 'On Target' : 
+                      goalProgress >= 70 ? 'Getting Close' : 
+                      'Needs Attention'
+                  }
                 </div>
               </div>
               
               {/* Decorative elements */}
               <div className="absolute -right-4 -bottom-4 opacity-10">
-                {goalProgress >= 100 ? (
+                {(adjustedGoal !== dailyGoal ? adjustedGoalProgress : goalProgress) >= 100 ? (
                   <Trophy className="w-16 sm:w-20 h-16 sm:h-20 text-green-500" />
                 ) : (
-                  <Target className="w-16 sm:w-20 h-16 sm:h-20 text-blue-500" />
+                  <Target className="w-16 sm:w-20 h-16 sm:h-20 text-amber-500" />
                 )}
               </div>
             </div>
@@ -487,31 +656,36 @@ export const MonthlyGoalSummary = () => {
             </div>
             
             {/* Streak status (hidden on small screens) */}
-            <div className="hidden sm:block w-full bg-background/50 rounded-lg p-3 mt-2 border border-border/20">
-              <h3 className="text-sm font-medium flex items-center mb-2">
-                <Flame className="h-4 w-4 mr-1 text-amber-500" />
+            <div className="hidden md:block mb-6">
+              <h3 className="text-lg font-medium mb-2">
                 Streak Status
               </h3>
-              
-              {streak > 0 ? (
-                <div className="bg-amber-500/10 rounded-md p-2">
-                  <div className="font-medium text-amber-600 dark:text-amber-400 flex items-center">
-                    <span className="mr-1">🔥</span> {streak} day{streak !== 1 ? 's' : ''} streak!
+              <div>
+                {streak > 0 ? (
+                  <div className="space-y-1">
+                    <div className="font-medium text-amber-600 dark:text-amber-400">
+                      <span className="mr-1">🔥</span> {streak} day{streak !== 1 ? 's' : ''} streak!
+                    </div>
+                    <p className="text-sm">
+                      {streak >= 7 ? "Amazing consistency! Keep going!" :
+                      streak >= 3 ? "Building momentum! Don't break the chain!" :
+                      "Great start! Keep it up!"}
+                    </p>
+                    {settings?.streakSettings?.countWorkdaysOnly && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Based on your work schedule: {formatWorkdays(settings.streakSettings.workdays || [1, 2, 3, 4, 5])}
+                      </p>
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {streak >= 7 ? "Amazing consistency! Keep going!" : 
-                     streak >= 3 ? "Building momentum! Don't break the chain!" :
-                     "Great start! Make it a habit!"}
+                ) : (
+                  <div>
+                    <div className="font-medium text-muted-foreground">No active streak</div>
+                    <p className="text-sm">
+                      Log an offer today to start a new streak!
+                    </p>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-muted/30 rounded-md p-2">
-                  <div className="font-medium text-muted-foreground">No active streak</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Log an offer today to start a new streak!
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
           
@@ -548,43 +722,92 @@ export const MonthlyGoalSummary = () => {
             </div>
             
             {/* Interactive Goal Slider */}
-            <div className="mb-4 bg-muted/20 rounded-lg p-2 sm:p-3 border border-border/10">
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs sm:text-sm flex items-center">
-                  <Target className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-blue-500" />
-                  Adjust Goal:
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs sm:text-sm font-medium">{adjustedGoal}</span>
-                  <Badge variant={adjustedGoal !== dailyGoal ? "outline" : "secondary"} className="h-5 sm:h-6 text-[10px] sm:text-xs">
-                    {adjustedGoal === dailyGoal ? "Default" : 
-                     adjustedGoal > dailyGoal ? "Increased" : "Reduced"}
-                  </Badge>
+            <div className="bg-card/30 rounded-lg p-3 sm:p-4 mb-3 border border-border/10">
+              <div className="flex justify-between items-center mb-3">
+                <div className="text-xs sm:text-sm font-medium">Adjust Daily Goal</div>
+                <div className="text-xs font-medium">
+                  {adjustedGoal} {adjustedGoal === 1 ? 'offer' : 'offers'}/day
                 </div>
               </div>
-              <div className="px-2">
-                <Slider
-                  value={[adjustedGoal]}
-                  min={Math.max(1, Math.floor(dailyGoal / 2))}
-                  max={dailyGoal * 2}
-                  step={1}
-                  onValueChange={(values) => setAdjustedGoal(values[0])}
-                  className="py-1"
-                />
+              <Slider
+                value={[adjustedGoal]}
+                min={1}
+                max={Math.max(10, dailyGoal * 2)}
+                step={1}
+                onValueChange={(values) => setAdjustedGoal(values[0])}
+              />
+              <div className="flex justify-between text-[10px] sm:text-xs mt-1 text-muted-foreground">
+                <div>Easier</div>
+                <div>Harder</div>
               </div>
-              <div className="text-[10px] sm:text-xs text-muted-foreground mt-1 flex justify-between">
-                <span>Easier</span>
-                <span>Default: {dailyGoal}</span>
-                <span>Challenging</span>
-              </div>
-              {adjustedGoal !== dailyGoal && (
-                <div className="text-[10px] sm:text-xs mt-2 bg-blue-500/10 p-2 rounded-md text-blue-600 dark:text-blue-400">
-                  {adjustedGoal < dailyGoal 
-                    ? `Adjusted goal: ${adjustedMonthlyGoal} (${Math.round((adjustedMonthlyGoal / monthlyGoal) * 100)}% of original)`
-                    : `Adjusted goal: ${adjustedMonthlyGoal} (${Math.round((adjustedMonthlyGoal / monthlyGoal) * 100)}% of original)`
-                  }
+              
+              {/* Forecast with adjusted goal */}
+              <div className="p-2 bg-background/50 rounded border border-border/10 mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium flex items-center">
+                    <ArrowUpRight className="h-3 w-3 mr-1" />
+                    Forecast Statistics
+                  </span>
+                  <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm">
+                    {adjustedGoal !== dailyGoal 
+                      ? `${adjustedForecastPercentage}% of adjusted` 
+                      : `${forecastPercentage}% of target`}
+                  </span>
                 </div>
-              )}
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Current:</span>
+                      <span className="font-medium">{offerCount} offers</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Target:</span>
+                      <span className="font-medium">
+                        {adjustedGoal !== dailyGoal 
+                          ? `${adjustedMonthlyGoal} offers` 
+                          : `${monthlyGoal} offers`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Projected:</span>
+                      <span className="font-medium">{forecastTotal} offers</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Avg/Day:</span>
+                      <span className="font-medium">{averageDailyOffers.toFixed(1)}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Days Left:</span>
+                      <span className="font-medium">{futureWorkdays.length} {useWorkdaySettings ? 'work days' : 'days'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Needed:</span>
+                      <span className="font-medium">
+                        {adjustedGoal !== dailyGoal
+                          ? (onTrackToMeetAdjustedGoal 
+                              ? 'On track!' 
+                              : `${Math.ceil(adjustedMonthlyGoal - forecastTotal)} more`)
+                          : (onTrackToMeetGoal 
+                              ? 'On track!' 
+                              : `${Math.ceil(monthlyGoal - forecastTotal)} more`)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {adjustedGoal !== dailyGoal && (
+                    <div className="mt-2 pt-2 border-t border-border/10 text-xs">
+                      <div className="flex items-center justify-between text-blue-500">
+                        <span>Adjusted from {dailyGoal}/day</span>
+                        <span>{Math.round((adjustedMonthlyGoal / monthlyGoal) * 100)}% of original</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             
             {/* Enhanced Chart with mobile optimization */}
@@ -652,6 +875,22 @@ export const MonthlyGoalSummary = () => {
                         fontSize: 9
                       }}
                     />
+                    
+                    {/* Adjusted Goal Line (if different) */}
+                    {adjustedGoal !== dailyGoal && (
+                      <ReferenceLine 
+                        y={adjustedGoal} 
+                        stroke="#3b82f6" 
+                        strokeDasharray="3 3" 
+                        strokeWidth={1.5}
+                        label={{ 
+                          value: 'Adjusted', 
+                          position: 'right', 
+                          fill: '#3b82f6',
+                          fontSize: 9
+                        }}
+                      />
+                    )}
                     
                     {/* Milestone Markers */}
                     {milestones.map((milestone, idx) => (
@@ -801,18 +1040,20 @@ export const MonthlyGoalSummary = () => {
             </div>
             
             {/* Streak status (mobile only) */}
-            <div className="block sm:hidden w-full bg-background/50 rounded-lg p-2 mt-3 border border-border/20">
+            <div className="md:hidden mb-4 p-3 bg-muted/30 rounded-lg">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium flex items-center">
-                  <Flame className="h-3 w-3 mr-1 text-amber-500" />
+                <div className="font-medium">
                   Streak: {streak} day{streak !== 1 ? 's' : ''}
-                </span>
+                </div>
                 {streak > 0 && (
-                  <span className="text-amber-500 text-[10px]">
-                    🔥 Keep it up!
-                  </span>
+                  <div className="text-amber-600 dark:text-amber-400">🔥</div>
                 )}
               </div>
+              {settings?.streakSettings?.countWorkdaysOnly && streak > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Based on your {formatWorkdays(settings.streakSettings.workdays || [1, 2, 3, 4, 5])} schedule
+                </p>
+              )}
             </div>
           </div>
         </div>

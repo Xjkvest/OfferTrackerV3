@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger 
 } from "@/components/ui/alert-dialog";
+import { ResetAppSection } from "@/components/settings";
 
 export function SettingsContent() {
   const { userName, setUserName, channels, setChannels, offerTypes, setOfferTypes, resetAppData, baseOfferLink, setBaseOfferLink } = useUser();
@@ -329,35 +330,7 @@ export function SettingsContent() {
                 This will permanently delete all your data and cannot be undone.
               </p>
               
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="mt-2">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Reset Application
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="bg-gradient-to-br from-background/95 to-background/90 backdrop-blur-sm">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center text-red-600">
-                      <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
-                      Reset Application Data
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action will permanently delete all your data, including all offers, 
-                      settings and preferences. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={resetAppData}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Yes, Reset Everything
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <ResetAppSection />
             </div>
           </div>
         </CardContent>

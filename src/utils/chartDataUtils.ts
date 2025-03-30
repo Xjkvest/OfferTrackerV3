@@ -1,5 +1,5 @@
 import { Offer } from "@/context/OfferContext";
-import { format, addDays, isWithinInterval, parseISO, startOfWeek, endOfWeek, getDaysInMonth, setDate, subDays, getDay, isSameDay, subWeeks, subMonths, startOfQuarter, endOfQuarter, subQuarters } from "date-fns";
+import { format, addDays, isWithinInterval, parseISO, startOfWeek, endOfWeek, getDaysInMonth, setDate, subDays, getDay, isSameDay, subWeeks, subMonths, startOfQuarter, endOfQuarter, subQuarters, differenceInDays } from "date-fns";
 
 // Define the interface for chart data points
 export interface ChartDataPoint {
@@ -224,8 +224,27 @@ export const getCsatData = (offers: Offer[]): PieDataPoint[] => {
 // Generate conversion data for pie chart
 export const getConversionData = (offers: Offer[]): PieDataPoint[] => {
   const converted = offers.filter(offer => offer.converted === true).length;
-  const notConverted = offers.filter(offer => offer.converted === false).length;
-  const pending = offers.filter(offer => offer.converted === undefined).length;
+  const notConverted = offers.filter(offer => {
+    if (offer.converted === false) return true;
+    
+    if (offer.converted === undefined) {
+      const offerDate = parseISO(offer.date);
+      const today = new Date();
+      const daysSinceOffer = differenceInDays(today, offerDate);
+      return daysSinceOffer > 30;
+    }
+    
+    return false;
+  }).length;
+  const pending = offers.filter(offer => {
+    if (offer.converted === undefined) {
+      const offerDate = parseISO(offer.date);
+      const today = new Date();
+      const daysSinceOffer = differenceInDays(today, offerDate);
+      return daysSinceOffer <= 30;
+    }
+    return false;
+  }).length;
   
   return [
     {

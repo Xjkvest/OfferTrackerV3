@@ -10,7 +10,7 @@ import { DashboardHeader } from "./dashboard/DashboardHeader";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { HelpButton } from "./HelpButton";
 import { useToast } from "@/components/ui/use-toast";
-import { openHelp } from "./HelpButton";
+import { useNavigate } from "react-router-dom";
 
 export function Dashboard() {
   const { userName } = useUser();
@@ -18,6 +18,7 @@ export function Dashboard() {
   const [offerDialogOpen, setOfferDialogOpen] = useState(false);
   const [preferenceDialogOpen, setPreferenceDialogOpen] = useState(false);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const navigate = useNavigate();
   
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -51,20 +52,20 @@ export function Dashboard() {
   }, []);
   
   const handleHelpClick = useCallback(() => {
-    openHelp();
-  }, []);
+    navigate("/help");
+  }, [navigate]);
 
   // Set up keyboard shortcuts
   useKeyboardShortcuts({
     newOffer: {
-      combo: { key: 'n', metaKey: true },
+      combo: { key: 'n', shiftKey: true, metaKey: true },
       handler: handleNewOfferClick,
-      description: 'Create a new offer (⌘ N)',
+      description: 'Create a new offer (⌘ Shift N)',
     },
     quickOffer: {
-      combo: { key: 'o', metaKey: true },
+      combo: { key: 'o', shiftKey: true, metaKey: true },
       handler: handleNewOfferClick,
-      description: 'Quick log offer (⌘ O)',
+      description: 'Quick log offer (⌘ Shift O)',
     },
     preferences: {
       combo: { key: ',', metaKey: true },
@@ -72,9 +73,9 @@ export function Dashboard() {
       description: 'Open preferences (⌘ ,)',
     },
     help: {
-      combo: { key: '/', metaKey: true },
+      combo: { key: '/', shiftKey: true, metaKey: true },
       handler: handleHelpClick,
-      description: 'Show keyboard shortcuts (⌘ /)',
+      description: 'Show keyboard shortcuts (⌘ Shift /)',
     },
   });
 
@@ -89,7 +90,14 @@ export function Dashboard() {
     }
     
     const today = new Date().toISOString().split('T')[0];
+    
+    // Check both followups array and legacy followupDate
     const urgentFollowups = offers.filter(o => {
+      // Check new followups array structure
+      if (o.followups && o.followups.length > 0) {
+        return o.followups.some(f => !f.completed && f.date <= today);
+      }
+      // Fall back to legacy followupDate
       return o.followupDate && (o.followupDate <= today);
     });
     
@@ -141,11 +149,6 @@ export function Dashboard() {
         open={preferenceDialogOpen}
         onOpenChange={setPreferenceDialogOpen}
       />
-      
-      {/* Hidden help dialog for keyboard shortcut */}
-      <div className="hidden">
-        <HelpButton asPopover={false} />
-      </div>
     </motion.div>
   );
 }

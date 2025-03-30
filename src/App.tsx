@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { UserProvider } from "@/context/UserContext";
 import { OfferProvider } from "@/context/OfferContext";
@@ -9,6 +9,11 @@ import { AnimatedTransition } from "@/components/AnimatedTransition";
 import { Header } from "@/components/Header";
 import { lazy, Suspense } from "react";
 import { LazyMotion, domAnimation } from "framer-motion";
+import { HashRouter } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+
+// Layouts
+import AppLayout from "@/layouts/AppLayout";
 
 // Load less frequently used pages with code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -16,6 +21,8 @@ const Offers = lazy(() => import("./pages/Offers"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Settings = lazy(() => import("./pages/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const Help = lazy(() => import("./pages/Help"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -47,50 +54,30 @@ const App = () => (
           <OfferProvider>
             <TooltipProvider>
               <Toaster />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={
-                    <>
-                      <Header />
-                      <Suspense fallback={<PageLoader />}>
-                        <Index />
-                      </Suspense>
-                    </>
-                  } />
-                  <Route path="/offers" element={
-                    <>
-                      <Header />
-                      <Suspense fallback={<PageLoader />}>
-                        <Offers />
-                      </Suspense>
-                    </>
-                  } />
-                  <Route path="/analytics" element={
-                    <>
-                      <Header />
-                      <Suspense fallback={<PageLoader />}>
-                        <Analytics />
-                      </Suspense>
-                    </>
-                  } />
-                  <Route path="/settings" element={
-                    <>
-                      <Header />
-                      <Suspense fallback={<PageLoader />}>
-                        <Settings />
-                      </Suspense>
-                    </>
-                  } />
-                  <Route path="*" element={
-                    <>
-                      <Header />
-                      <Suspense fallback={<PageLoader />}>
-                        <NotFound />
-                      </Suspense>
-                    </>
-                  } />
-                </Routes>
-              </BrowserRouter>
+              <HashRouter>
+                <Header />
+                <Suspense
+                  fallback={
+                    <div className="flex h-[90vh] items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  }
+                >
+                  <main className="min-h-[90vh] bg-background pb-8 pt-4">
+                    <Routes>
+                      <Route path="/" element={<AppLayout />}>
+                        <Route index element={<Index />} />
+                        <Route path="offers" element={<Offers />} />
+                        <Route path="analytics" element={<Analytics />} />
+                        <Route path="settings" element={<Settings />} />
+                        <Route path="notifications" element={<Notifications />} />
+                        <Route path="help" element={<Help />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Route>
+                    </Routes>
+                  </main>
+                </Suspense>
+              </HashRouter>
             </TooltipProvider>
           </OfferProvider>
         </UserProvider>

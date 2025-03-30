@@ -1,4 +1,6 @@
 import { Offer } from "@/context/OfferContext";
+import { parseISO } from "date-fns";
+import { differenceInDays } from "date-fns";
 
 export function getFilteredOffers(
   offers: Offer[],
@@ -50,8 +52,15 @@ export function getFilteredOffers(
 }
 
 export function getConversionByTypeData(offers: Offer[], offerTypes: string[]) {
-  // Get all offers with a decision (converted=true/false)
-  const decidedOffers = offers.filter(o => o.converted !== undefined);
+  // Get all offers with a decision (converted=true/false) or over 30 days old
+  const decidedOffers = offers.filter(o => {
+    if (o.converted !== undefined) return true;
+    
+    const offerDate = parseISO(o.date);
+    const today = new Date();
+    const daysSinceOffer = differenceInDays(today, offerDate);
+    return daysSinceOffer > 30;
+  });
   
   // Group by offer type
   const offerTypeGroups: Record<string, Offer[]> = {};
@@ -124,8 +133,15 @@ export function getCsatByChannelData(offers: Offer[], channels: string[]) {
 }
 
 export function getConversionsByChannelData(offers: Offer[], channels: string[]) {
-  // Get all offers with a conversion decision
-  const decidedOffers = offers.filter(o => o.converted !== undefined);
+  // Get all offers with a conversion decision or over 30 days old
+  const decidedOffers = offers.filter(o => {
+    if (o.converted !== undefined) return true;
+    
+    const offerDate = parseISO(o.date);
+    const today = new Date();
+    const daysSinceOffer = differenceInDays(today, offerDate);
+    return daysSinceOffer > 30;
+  });
   
   // Group by channel
   const channelGroups: Record<string, Offer[]> = {};

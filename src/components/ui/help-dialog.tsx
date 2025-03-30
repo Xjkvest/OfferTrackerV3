@@ -21,12 +21,12 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
   // We don't use the handlers here, just for display
   const shortcuts = {
     newOffer: {
-      combo: { key: 'n', metaKey: true },
+      combo: { key: 'n', shiftKey: true, metaKey: true },
       handler: () => {},
       description: 'Create a new offer',
     },
     quickOffer: {
-      combo: { key: 'o', metaKey: true },
+      combo: { key: 'o', shiftKey: true, metaKey: true },
       handler: () => {},
       description: 'Quick log offer',
     },
@@ -36,7 +36,7 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
       description: 'Open preferences',
     },
     help: {
-      combo: { key: '/', metaKey: true },
+      combo: { key: '/', shiftKey: true, metaKey: true },
       handler: () => {},
       description: 'Show keyboard shortcuts',
     },

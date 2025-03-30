@@ -26,7 +26,10 @@ import {
   Tag,
   CheckCircle2,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  Link,
+  ExternalLink,
+  AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -40,13 +43,15 @@ const DEFAULT_CHANNELS = ['Chat', 'Email', 'Follow-up'];
 const DEFAULT_OFFER_TYPES = ['Email Campaigns', 'Digital Products', 'Second Domain', 'Google Workspace', 'Website plan'];
 
 export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
-  const { setUserName, setDailyGoal, setChannels, setOfferTypes } = useUser();
+  const { setUserName, setDailyGoal, setChannels, setOfferTypes, setBaseOfferLink } = useUser();
   
   const [step, setStep] = useState(1);
   const [nameInput, setNameInput] = useState("");
   const [goalInput, setGoalInput] = useState(5);
   const [channelInput, setChannelInput] = useState("");
   const [offerTypeInput, setOfferTypeInput] = useState("");
+  const [baseUrlInput, setBaseUrlInput] = useState("");
+  const [baseUrlError, setBaseUrlError] = useState("");
   const [tempChannels, setTempChannels] = useState<string[]>(DEFAULT_CHANNELS);
   const [tempOfferTypes, setTempOfferTypes] = useState<string[]>(DEFAULT_OFFER_TYPES);
   
@@ -72,6 +77,26 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
     setTempOfferTypes(tempOfferTypes.filter(t => t !== type));
   };
   
+  // Validate base URL input
+  React.useEffect(() => {
+    if (!baseUrlInput) {
+      setBaseUrlError("");
+      return;
+    }
+    
+    if (!baseUrlInput.startsWith('http')) {
+      setBaseUrlError("URL must start with http:// or https://");
+      return;
+    }
+    
+    if (!baseUrlInput.endsWith('/')) {
+      setBaseUrlError("URL must end with a /");
+      return;
+    }
+    
+    setBaseUrlError("");
+  }, [baseUrlInput]);
+  
   const handleNext = () => {
     if (step === 1 && !nameInput.trim()) {
       toast({
@@ -82,7 +107,16 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
       return;
     }
     
-    if (step < 4) {
+    if (step === 5 && baseUrlInput && baseUrlError) {
+      toast({
+        title: "Invalid URL Format",
+        description: baseUrlError,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (step < 5) {
       setStep(step + 1);
     } else {
       handleComplete();
@@ -103,6 +137,11 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
     setDailyGoal(goalInput);
     setChannels(tempChannels);
     setOfferTypes(tempOfferTypes);
+    
+    // Set base URL if provided and valid
+    if (baseUrlInput && !baseUrlError) {
+      setBaseOfferLink(baseUrlInput.trim());
+    }
     
     onComplete();
   };
@@ -138,6 +177,13 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
           icon: <Tag className="h-12 w-12 text-primary" />,
           benefit: "Identify which offers convert best"
         };
+      case 5:
+        return {
+          title: "Case Link Settings",
+          description: "Set up links to your external case management system.",
+          icon: <Link className="h-12 w-12 text-primary" />,
+          benefit: "Quick access to your external case records"
+        };
       default:
         return {
           title: "Welcome",
@@ -162,7 +208,8 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
     { name: "Profile", icon: <User className="h-4 w-4" /> },
     { name: "Goals", icon: <Target className="h-4 w-4" /> },
     { name: "Channels", icon: <MessageSquare className="h-4 w-4" /> },
-    { name: "Offers", icon: <Tag className="h-4 w-4" /> }
+    { name: "Offers", icon: <Tag className="h-4 w-4" /> },
+    { name: "Links", icon: <Link className="h-4 w-4" /> }
   ];
 
   return (
@@ -204,7 +251,7 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
                     {stepItem.name}
                   </span>
                 </div>
-                {i < 3 && (
+                {i < 4 && (
                   <div className="relative flex-1 h-0.5 bg-muted">
                     <motion.div 
                       className="absolute inset-0 bg-primary h-full origin-left"
@@ -510,6 +557,74 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
                 </div>
               </div>
             )}
+
+            {step === 5 && (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="baseUrl" className="text-base">Case Link Base URL (Optional)</Label>
+                  <div className="pt-1 pb-2">
+                    <div className="relative">
+                      <Input
+                        id="baseUrl"
+                        value={baseUrlInput}
+                        onChange={(e) => setBaseUrlInput(e.target.value)}
+                        placeholder="https://support.example.com/cases/"
+                        className={`w-full focus:z-10 ${baseUrlError ? "border-red-500" : ""} pr-9`}
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                        <ExternalLink className="h-4 w-4" />
+                      </div>
+                    </div>
+                    {baseUrlError && (
+                      <div className="text-xs text-red-500 flex items-center mt-1">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        {baseUrlError}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    When set, case numbers will render as clickable links to your external case management system.
+                  </p>
+                </div>
+
+                <div className="mt-4 p-3 bg-muted/40 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-cyan-100 dark:bg-cyan-900/20 flex items-center justify-center mr-2">
+                      <Eye className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-sm">Preview</h3>
+                      <p className="text-xs text-muted-foreground">Here's how case links will appear</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-2 p-2 bg-background rounded-md">
+                    {baseUrlInput && !baseUrlError ? (
+                      <div className="text-sm flex items-center">
+                        Case <a 
+                          href="#" 
+                          onClick={(e) => e.preventDefault()}
+                          className="mx-1 text-blue-500 hover:underline inline-flex items-center"
+                        >
+                          #12345
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </a> 
+                        will link to 
+                        <span className="ml-1 font-mono text-xs bg-muted px-1 py-0.5 rounded">{baseUrlInput}12345</span>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        Case #12345 (not linked to external system)
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground mt-1.5 italic">
+                    You can always update this later in Settings.
+                  </p>
+                </div>
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -530,7 +645,7 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
           type="button"
           className="min-w-[100px] bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          {step < 4 ? (
+          {step < 5 ? (
             <>
               Next
               <ArrowRight className="h-4 w-4 ml-1.5" />

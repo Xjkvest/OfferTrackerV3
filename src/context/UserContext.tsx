@@ -1,4 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { storageService } from '@/utils/storageService';
+import { StreakSettings, defaultStreakSettings } from '@/utils/streakCalculation';
 
 export interface Notification {
   id: string;
@@ -14,7 +16,6 @@ export interface Notification {
 // Settings related interfaces
 export interface UserSettings {
   greetingStyle: "auto" | "fixed" | "none";
-  offersConvertedByDefault: boolean;
   defaultFollowupTime: "24" | "48" | "72" | "168";
   enableFollowupNudges: boolean;
   showQuickLogOffer: boolean;
@@ -22,6 +23,7 @@ export interface UserSettings {
   showMotivationalMessages: boolean;
   fontSizePreference: "small" | "medium" | "large";
   dashboardDensity: "cozy" | "comfortable" | "compact";
+  streakSettings: StreakSettings;
 }
 
 interface UserContextType {
@@ -51,18 +53,18 @@ interface UserContextType {
 
 const initialChannels = ['Follow-up', 'Email', 'Chat'];
 const initialOfferTypes = ['Email Campaigns', 'Google Workspace', 'Website Upgrade', 'Second Domain', 'Payments'];
-const initialDashboardElements = ['progress', 'newOfferForm', 'metrics', 'followups', 'recentOffers', 'analytics'];
-const initialDashboardOrder = ['followups', 'progress', 'metrics', 'recentOffers', 'analytics'];
+const initialDashboardElements = ['progress', 'newOfferForm', 'metrics', 'followups', 'recentOffers', 'analytics', 'calendar'];
+const initialDashboardOrder = ['followups', 'progress', 'calendar', 'recentOffers', 'analytics'];
 const initialSettings: UserSettings = {
   greetingStyle: "auto",
-  offersConvertedByDefault: false,
   defaultFollowupTime: "72", // Changed from "24" to "72" (3 days)
   enableFollowupNudges: true,
   showQuickLogOffer: true,
   showOfferStreaks: true,
   showMotivationalMessages: true,
   fontSizePreference: "medium",
-  dashboardDensity: "comfortable"
+  dashboardDensity: "comfortable",
+  streakSettings: defaultStreakSettings
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -175,18 +177,11 @@ export const UserProvider = ({ children }: UserProviderProps) => {
     setNotifications([]);
   };
 
-  const resetAppData = () => {
-    localStorage.removeItem('userName');
-    localStorage.removeItem('channels');
-    localStorage.removeItem('offerTypes');
-    localStorage.removeItem('offers');
-    localStorage.removeItem('baseOfferLink');
-    localStorage.removeItem('dailyGoal');
-    localStorage.removeItem('dashboardElements');
-    localStorage.removeItem('dashboardElementsOrder');
-    localStorage.removeItem('notifications');
-    localStorage.removeItem('userSettings');
+  const resetAppData = async () => {
+    // Use storageService to clear all data from both localStorage and IndexedDB
+    await storageService.clearAllData();
     
+    // Reset state variables
     setUserName('');
     setChannels(initialChannels);
     setOfferTypes(initialOfferTypes);
@@ -197,7 +192,8 @@ export const UserProvider = ({ children }: UserProviderProps) => {
     setNotifications([]);
     setSettings(initialSettings);
     
-    window.location.reload();
+    // Redirect to home page with a parameter to trigger onboarding flow
+    window.location.href = '/?setup=true';
   };
 
   return (

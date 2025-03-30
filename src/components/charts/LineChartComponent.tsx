@@ -242,54 +242,28 @@ export const LineChartComponent: React.FC<LineChartComponentProps> = ({
           )}
           
           {/* Render either Line or Area components based on chartType */}
-          {chartType === "area" 
-            ? dataKeys.map((key, index) => (
-                <Area
-                  key={key}
-                  type="monotone"
-                  dataKey={key}
-                  name={key}
-                  stroke={colors[index % colors.length]}
-                  fill={`url(#gradient-${key})`}
-                  strokeWidth={2}
-                  fillOpacity={0.3}
-                  activeDot={{
-                    r: 5,
-                    strokeWidth: 1,
-                    stroke: theme === "dark" ? "#374151" : "#fff"
-                  }}
-                />
-              ))
-            : dataKeys.map((key, index) => (
-                <Line
-                  key={key}
-                  type="monotone"
-                  dataKey={key}
-                  name={key}
-                  stroke={colors[index % colors.length]}
-                  strokeWidth={2.5}
-                  dot={(props) => {
-                    const { cx, cy, payload } = props;
-                    const isToday = payload.isToday;
-                    
-                    return (
-                      <circle 
-                        cx={cx} 
-                        cy={cy} 
-                        r={isToday ? 5 : 3.5}
-                        stroke={colors[index % colors.length]}
-                        strokeWidth={1.5}
-                        fill={theme === "dark" ? "#1f2937" : "#fff"}
-                        style={{ 
-                          filter: isToday ? `drop-shadow(0 0 2px ${colors[index % colors.length]})` : "none"
-                        }}
-                      />
-                    );
-                  }}
-                  activeDot={{ r: 6, strokeWidth: 1, stroke: theme === "dark" ? "#374151" : "#fff" }}
-                />
-              ))
-          }
+          {dataKeys.map((key, index) => (
+            chartType === "line" ? (
+              <Line
+                key={`line-${key}`}
+                type="monotone"
+                dataKey={key}
+                stroke={colors[index % colors.length]}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 2 }}
+              />
+            ) : (
+              <Area
+                key={`area-${key}`}
+                type="monotone"
+                dataKey={key}
+                stroke={colors[index % colors.length]}
+                fill={`url(#gradient-${key})`}
+                fillOpacity={1}
+              />
+            )
+          ))}
           
           
         </LineChart>

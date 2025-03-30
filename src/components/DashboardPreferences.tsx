@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useUser } from "@/context/UserContext";
@@ -6,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Save, Layout, LayoutGrid, Trello, ClipboardList } from "lucide-react";
+import { Save, Layout, LayoutGrid, Trello, ClipboardList, Calendar, ArrowDownUp } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -47,6 +46,12 @@ const INDEPENDENT_ELEMENTS: DashboardElement[] = [
     description: 'Preview of your performance insights',
     icon: <Layout className="h-4 w-4 text-blue-500" />
   },
+  { 
+    id: 'calendar', 
+    label: 'Calendar View', 
+    description: 'Shows a monthly calendar with offer counts and work days',
+    icon: <Calendar className="h-4 w-4 text-green-500" />
+  },
 ];
 
 // All dashboard elements including the core group components
@@ -81,11 +86,38 @@ export function DashboardPreferences({ open, onOpenChange }: DashboardPreference
   const { dashboardElements, setDashboardElements, dashboardElementsOrder, setDashboardElementsOrder } = useUser();
   const [localElements, setLocalElements] = useState<string[]>([]);
   
+  // Add recommended order array
+  const recommendedOrder = ['followups', 'progress', 'calendar', 'recentOffers', 'analytics'];
+  
   useEffect(() => {
     if (open) {
       setLocalElements([...dashboardElements]);
     }
   }, [dashboardElements, open]);
+  
+  // Add function to reset to recommended order
+  const resetToRecommendedOrder = () => {
+    // Create a new order based on the recommended sequence but only include enabled elements
+    const newOrder = recommendedOrder.filter(item => localElements.includes(item));
+    
+    // Add any remaining elements that aren't in the recommended list
+    localElements.forEach(element => {
+      if (!newOrder.includes(element)) {
+        newOrder.push(element);
+      }
+    });
+    
+    // Update the dashboard order
+    setDashboardElementsOrder(newOrder);
+    
+    // Close the dialog
+    onOpenChange(false);
+    
+    toast({
+      title: "Dashboard Order Reset",
+      description: "Your dashboard has been organized in the recommended order."
+    });
+  };
   
   const handleToggle = (elementId: string, isCore: boolean = false) => {
     let newElements = [...localElements];
@@ -214,7 +246,16 @@ export function DashboardPreferences({ open, onOpenChange }: DashboardPreference
             </div>
           </div>
           
-          <div className="flex justify-end mt-4">
+          <div className="flex justify-between mt-4">
+            <Button 
+              variant="outline" 
+              onClick={resetToRecommendedOrder}
+              className="flex items-center gap-1"
+            >
+              <ArrowDownUp className="h-4 w-4" />
+              Reset Order
+            </Button>
+            
             <Button onClick={handleSave} className="bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700">
               <Save className="h-4 w-4 mr-2" />
               Save Preferences

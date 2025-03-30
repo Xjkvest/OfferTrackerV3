@@ -7,10 +7,11 @@ import { OfferFormValues } from "@/hooks/useOfferForm";
 
 interface CaseNumberFieldProps {
   form: UseFormReturn<OfferFormValues>;
+  offerId?: string;
 }
 
 export const CaseNumberField = forwardRef<HTMLInputElement, CaseNumberFieldProps>(
-  ({ form }, ref) => {
+  ({ form, offerId }, ref) => {
     return (
       <FormField
         control={form.control}

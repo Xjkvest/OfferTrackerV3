@@ -5,8 +5,8 @@ import { useTheme } from "@/context/ThemeContext";
 import { useFilters } from "@/context/FilterContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { FilterBar } from "./FilterBar";
+import { getFilteredOffers } from "@/utils/performanceUtils";
 import { 
-  getFilteredOffers, 
   getConversionByTypeData, 
   getCsatByChannelData,
   getConversionsByChannelData,
@@ -55,26 +55,39 @@ export const TrendsBreakdown: React.FC = () => {
   const isDark = theme === 'dark';
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
+  console.log('TrendsBreakdown: Component mounted');
+  console.log('TrendsBreakdown: offers length', offers.length);
+  console.log('TrendsBreakdown: channels', channels);
+  console.log('TrendsBreakdown: filters', filters);
+  
   // Get filtered offers
   const filteredOffers = useMemo(() => {
-    return getFilteredOffers(
-      offers,
-      filters.dateRange.start && filters.dateRange.end 
-        ? { 
-            start: filters.dateRange.start instanceof Date 
-              ? formatDateForStorage(filters.dateRange.start) 
-              : String(filters.dateRange.start), 
-            end: filters.dateRange.end instanceof Date 
-              ? formatDateForStorage(filters.dateRange.end) 
-              : String(filters.dateRange.end) 
-          } 
-        : null,
-      filters.channels.length > 0 ? filters.channels : null,
-      filters.offerTypes.length > 0 ? filters.offerTypes : null,
-      filters.csat ? filters.csat[0] : null,
-      filters.converted,
-      filters.hasFollowup
-    );
+    console.log('TrendsBreakdown: Computing filteredOffers');
+    try {
+      const result = getFilteredOffers(
+        offers,
+        filters.dateRange.start && filters.dateRange.end 
+          ? { 
+              start: filters.dateRange.start instanceof Date 
+                ? formatDateForStorage(filters.dateRange.start) 
+                : String(filters.dateRange.start), 
+              end: filters.dateRange.end instanceof Date 
+                ? formatDateForStorage(filters.dateRange.end) 
+                : String(filters.dateRange.end) 
+            } 
+          : null,
+        filters.channels.length > 0 ? filters.channels : null,
+        filters.offerTypes.length > 0 ? filters.offerTypes : null,
+        filters.csat ? filters.csat[0] : null,
+        filters.converted,
+        filters.hasFollowup
+      );
+      console.log('TrendsBreakdown: Filtered offers length', result.length);
+      return result;
+    } catch (error) {
+      console.error('TrendsBreakdown: Error filtering offers', error);
+      return [];
+    }
   }, [offers, filters]);
 
   // Calculate daily trends data
@@ -274,14 +287,6 @@ export const TrendsBreakdown: React.FC = () => {
             />
           </motion.div>
 
-          {/* Conversion Velocity Analysis - Full width */}
-          <motion.div 
-            variants={chartVariants}
-            className="mb-4"
-          >
-            <ConversionVelocityAnalysis />
-          </motion.div>
-
           {/* Other cards in 2 columns */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* Offers & Conversions Trend */}
@@ -456,6 +461,13 @@ export const TrendsBreakdown: React.FC = () => {
               </ModernAnalyticsCard>
             </motion.div>
           </div>
+          
+          {/* Conversion Velocity Analysis */}
+          <Card className="col-span-1 md:col-span-3">
+            <CardContent className="p-6">
+              <ConversionVelocityAnalysis filteredOffers={filteredOffers} />
+            </CardContent>
+          </Card>
         </motion.div>
       );
     }

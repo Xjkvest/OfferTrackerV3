@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +23,7 @@ export function AppearanceLayout() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <LayoutGrid className="h-5 w-5 text-blue-500" />
-          Appearance & Layout
+          Appearance
         </CardTitle>
         <CardDescription>
           Customize the visual appearance of the app

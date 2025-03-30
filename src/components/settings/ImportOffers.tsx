@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { useOffers } from "@/context/OfferContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,9 +23,13 @@ import {
 } from "@/components/ui/popover";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
+import { exportImportTemplate } from "@/utils/exportData";
 
 // Accept both lowercase and uppercase column names for flexibility
-const HEADERS = ["date", "offerType", "channel", "notes", "converted", "csat", "csatComment", "caseNumber", "followupDate"];
+const REQUIRED_HEADERS = ["date", "offerType", "channel"];
+const OPTIONAL_HEADERS = ["notes", "converted", "csat", "csatComment", "caseNumber", "followupDate"];
+const HEADERS = [...REQUIRED_HEADERS, ...OPTIONAL_HEADERS];
+
 const HEADER_ALTERNATIVES = {
   "date": ["date", "offer date", "offerdate"],
   "offerType": ["offertype", "offer type", "offer_type", "type"],
@@ -41,15 +44,15 @@ const HEADER_ALTERNATIVES = {
 
 // Column help text for the CSV import
 const COLUMN_INSTRUCTIONS = {
-  date: "The date of the offer (YYYY-MM-DD format or ISO format)",
-  offerType: "The type of offer (must match one of your configured offer types)",
-  channel: "The channel through which the offer was made (must match one of your configured channels)",
-  notes: "Any notes about the offer (leave blank for none)",
-  converted: "Whether the offer was converted ('true' or 'false')",
-  csat: "Customer satisfaction ('positive', 'neutral', 'negative', or blank for unknown)",
-  csatComment: "Comments related to customer satisfaction (leave blank for none)",
-  caseNumber: "The case number for the offer (leave blank for none)",
-  followupDate: "The date for following up (YYYY-MM-DD format, ISO format, or blank for none)"
+  date: "REQUIRED: The date of the offer (YYYY-MM-DD format or ISO format)",
+  offerType: "REQUIRED: The type of offer (must match one of your configured offer types)",
+  channel: "REQUIRED: The channel through which the offer was made (must match one of your configured channels)",
+  notes: "OPTIONAL: Any notes about the offer (leave blank for none)",
+  converted: "OPTIONAL: Whether the offer was converted ('true' or 'false')",
+  csat: "OPTIONAL: Customer satisfaction ('positive', 'neutral', 'negative', or blank for unknown)",
+  csatComment: "OPTIONAL: Comments related to customer satisfaction (leave blank for none)",
+  caseNumber: "OPTIONAL: The case number for the offer (leave blank for none)",
+  followupDate: "OPTIONAL: The date for following up (YYYY-MM-DD format, ISO format, or blank for none)"
 };
 
 export function ImportOffers() {
@@ -64,43 +67,7 @@ export function ImportOffers() {
   const [importStatus, setImportStatus] = useState<{added: number, skipped: number}>({ added: 0, skipped: 0 });
   
   const downloadTemplate = () => {
-    // Create a template with headers
-    const worksheet = XLSX.utils.json_to_sheet([]);
-    XLSX.utils.sheet_add_aoa(worksheet, [HEADERS]);
-    
-    // Add a sample row with data
-    XLSX.utils.sheet_add_json(worksheet, [{
-      date: new Date().toISOString(),
-      offerType: "Website Plan",
-      channel: "Chat",
-      notes: "Sample notes",
-      converted: "true",
-      csat: "positive",
-      csatComment: "Customer was satisfied",
-      caseNumber: "12345",
-      followupDate: new Date(Date.now() + 86400000).toISOString() // Tomorrow
-    }], { skipHeader: true, origin: 'A2' });
-    
-    // Add a blank row example
-    XLSX.utils.sheet_add_json(worksheet, [{
-      date: new Date().toISOString(),
-      offerType: "Google Workspace",
-      channel: "Email",
-      notes: "", // Empty for example
-      converted: "false",
-      csat: "", // Empty for example
-      csatComment: "", // Empty for example
-      caseNumber: "67890",
-      followupDate: "" // Empty for example
-    }], { skipHeader: true, origin: 'A3' });
-    
-    // Create workbook and download
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Offers");
-    
-    // Generate and save the file
-    const wbout = XLSX.write(workbook, { bookType: 'csv', type: 'array' });
-    saveAs(new Blob([wbout], { type: 'text/csv' }), 'offer-import-template.csv');
+    exportImportTemplate();
     
     toast({
       title: "Template Downloaded",
@@ -150,7 +117,7 @@ export function ImportOffers() {
         
         // Check for missing required headers
         const missingRequiredHeaders = [];
-        for (const requiredHeader of HEADERS) {
+        for (const requiredHeader of REQUIRED_HEADERS) {
           if (!normalizedHeaders.includes(requiredHeader)) {
             missingRequiredHeaders.push(requiredHeader);
           }
@@ -201,21 +168,19 @@ export function ImportOffers() {
       // Skip entirely empty rows
       if (Object.values(row).every(val => val === "")) return;
       
-      // Check if date is valid
+      // Check required fields
       if (!row.date) {
-        newErrors.push(`Missing required date at row ${index + 1}`);
+        newErrors.push(`Missing required field 'date' at row ${index + 1}`);
         return;
       }
       
-      // Check if offerType is valid
       if (!row.offerType) {
-        newErrors.push(`Missing required offerType at row ${index + 1}`);
+        newErrors.push(`Missing required field 'offerType' at row ${index + 1}`);
         return;
       }
       
-      // Check if channel is valid
       if (!row.channel) {
-        newErrors.push(`Missing required channel at row ${index + 1}`);
+        newErrors.push(`Missing required field 'channel' at row ${index + 1}`);
         return;
       }
       
@@ -270,7 +235,7 @@ export function ImportOffers() {
       }
       
       // Check for duplicates based on case number and date
-      const isDuplicate = offers.some(offer => 
+      const isDuplicate = row.caseNumber && offers.some(offer => 
         offer.caseNumber === row.caseNumber && 
         offer.caseNumber !== "" && // Only check if case number is not empty
         new Date(offer.date).toDateString() === new Date(row.date).toDateString()
@@ -390,7 +355,34 @@ export function ImportOffers() {
               <p className="font-medium text-foreground/90">Required Columns:</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 mt-2">
-                {HEADERS.map(header => (
+                {REQUIRED_HEADERS.map(header => (
+                  <div key={header} className="flex flex-col">
+                    <div className="flex items-center">
+                      <Badge variant="destructive" className="mr-2">{header}</Badge>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full">
+                            <HelpCircle className="h-3 w-3" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium">{COLUMN_INSTRUCTIONS[header as keyof typeof COLUMN_INSTRUCTIONS]}</p>
+                            <p className="text-xs">
+                              <span className="font-medium">Alternatives:</span> {HEADER_ALTERNATIVES[header as keyof typeof HEADER_ALTERNATIVES].join(', ')}
+                            </p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <p className="font-medium text-foreground/90 mt-4">Optional Columns:</p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 mt-2">
+                {OPTIONAL_HEADERS.map(header => (
                   <div key={header} className="flex flex-col">
                     <div className="flex items-center">
                       <Badge variant="outline" className="mr-2">{header}</Badge>
@@ -415,11 +407,14 @@ export function ImportOffers() {
               </div>
               
               <div className="space-y-1 mt-3">
-                <p className="font-medium text-foreground/90">Notes for empty values:</p>
+                <p className="font-medium text-foreground/90">CSV Import Notes:</p>
                 <ul className="list-disc pl-5 space-y-1">
+                  <li>Only the date, offerType, and channel fields are required</li>
                   <li>For text fields (notes, csatComment): Leave the cell blank or use an empty string ""</li>
                   <li>For optional dates (followupDate): Leave the cell blank or use an empty string ""</li>
                   <li>For csat rating: Leave blank for unknown, or use "positive", "neutral", "negative"</li>
+                  <li>For converted: Use "true" or "false", or leave blank for undetermined</li>
+                  <li>Case numbers are optional but help identify duplicates</li>
                 </ul>
               </div>
             </div>

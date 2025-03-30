@@ -81,10 +81,10 @@ export function HelpContent() {
           Use these Mac keyboard shortcuts to work faster:
         </p>
         <ul className="list-disc text-sm text-muted-foreground pl-6 space-y-1">
-          <li><span className="font-medium">⌘ N</span> - Create a new offer</li>
-          <li><span className="font-medium">⌘ O</span> - Quick log offer</li>
+          <li><span className="font-medium">⌘ Shift N</span> - Create a new offer</li>
+          <li><span className="font-medium">⌘ Shift O</span> - Quick log offer</li>
           <li><span className="font-medium">⌘ ,</span> - Open preferences</li>
-          <li><span className="font-medium">⌘ /</span> - Show this help dialog</li>
+          <li><span className="font-medium">⌘ Shift /</span> - Show this help dialog</li>
         </ul>
         <p className="text-sm text-muted-foreground mt-2">
           These shortcuts work from anywhere in the application except when typing in text fields.

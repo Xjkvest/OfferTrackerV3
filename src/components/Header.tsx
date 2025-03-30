@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Home, Tag, BarChart3, Settings2, PlusCircle, Bell } from "lucide-react";
+import { Home, Tag, BarChart3, Settings2, PlusCircle, Bell, HelpCircle } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { OfferDialog } from "./OfferDialog";
-import { HelpButton } from "./HelpButton";
+import HelpButton from "./HelpButton";
 import { MobileNavDrawer } from "./MobileNavDrawer";
 import { FloatingActionButton } from "./FloatingActionButton";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -34,18 +34,14 @@ export function Header() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <div className="flex items-center gap-2">
-              <div className="relative flex h-8 w-8 overflow-hidden rounded-full">
-                <img 
-                  src="/lovable-uploads/7dbf1552-c8ff-480f-a5ba-33e765394a5a.png" 
-                  alt="Offer Tracker Logo" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h1 className="hidden sm:block text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 via-purple-500 to-violet-400 bg-clip-text text-transparent">
-                Offer Tracker
-              </h1>
+            <div className="hidden md:flex md:h-12 md:w-12 mr-2">
+              <img
+                className="h-full w-full"
+                alt="Offer Tracker Logo"
+                src="./images/logo.png"
+              />
             </div>
+            <span className="font-bold text-lg">Offer Tracker</span>
           </Link>
           
           {/* Desktop Navigation */}

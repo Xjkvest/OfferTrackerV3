@@ -1,9 +1,8 @@
-
 import React, { useState } from "react";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { HelpContent } from "./HelpContent";
 
 export function HeaderWithHelp() {
@@ -31,6 +30,9 @@ export function HeaderWithHelp() {
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0">
           <DialogHeader className="px-4 pt-4 pb-2">
             <DialogTitle>Help & Information</DialogTitle>
+            <DialogDescription>
+              Learn how to use the offer tracking application more effectively
+            </DialogDescription>
           </DialogHeader>
           <HelpContent />
         </DialogContent>

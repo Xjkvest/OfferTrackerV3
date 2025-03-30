@@ -1,4 +1,3 @@
-
 import { Offer } from "@/context/OfferContext";
 import { saveAs } from "file-saver";
 import { format } from "date-fns";
@@ -249,17 +248,14 @@ export async function exportInspirationalImage(offers: Offer[], dateRangeText = 
   try {
     const imageUrl = await createInspirationalImage(offers, dateRangeText);
     
-    // Fetch the blob
-    const response = await fetch(imageUrl);
-    const blob = await response.blob();
-    
     // Generate filename
     const fileName = dateRangeText 
       ? `offer-achievements-${dateRangeText}.png`
       : `offer-achievements-${format(new Date(), 'yyyy-MM-dd')}.png`;
     
-    // Save file
-    saveAs(blob, fileName);
+    // Save file directly from the blob URL without using fetch
+    // The imageUrl is a blob URL created locally by createInspirationalImage
+    saveAs(imageUrl, fileName);
     
     // Cleanup
     URL.revokeObjectURL(imageUrl);

@@ -8,12 +8,12 @@
   "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "/lovable-uploads/7dbf1552-c8ff-480f-a5ba-33e765394a5a.png",
+      "src": "/images/logo.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/lovable-uploads/7dbf1552-c8ff-480f-a5ba-33e765394a5a.png",
+      "src": "/images/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
@@ -9,7 +8,7 @@ import {
   SheetTrigger 
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Home, Tag, BarChart3, Settings2, Menu } from "lucide-react";
+import { Home, Tag, BarChart3, Settings2, Menu, HelpCircle } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { HelpButton } from "./HelpButton";
 
@@ -48,22 +47,23 @@ export function MobileNavDrawer({ onNewOfferClick }: MobileNavDrawerProps) {
           aria-label="Open navigation menu"
         >
           <Menu className="h-5 w-5" />
+          <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="p-0 backdrop-blur-lg bg-background/95 w-[280px]">
         <SheetHeader className="p-4 border-b">
           <SheetTitle>
             <div className="flex items-center gap-2">
-              <div className="relative flex h-8 w-8 overflow-hidden rounded-full">
-                <img 
-                  src="/lovable-uploads/7dbf1552-c8ff-480f-a5ba-33e765394a5a.png" 
-                  alt="Offer Tracker Logo" 
-                  className="w-full h-full object-cover"
+              <Link to="/" className="flex items-center space-x-2" onClick={() => setOpen(false)}>
+                <img
+                  src="./images/logo.png"
+                  alt="Logo"
+                  width={40}
+                  height={40}
+                  className="rounded-md"
                 />
-              </div>
-              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 via-purple-500 to-violet-400 bg-clip-text text-transparent">
-                Offer Tracker
-              </h1>
+                <span className="text-xl font-semibold">Offer Tracker</span>
+              </Link>
             </div>
           </SheetTitle>
         </SheetHeader>

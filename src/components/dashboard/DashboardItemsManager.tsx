@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useUser } from "@/context/UserContext";
 import { useOffers } from "@/context/OfferContext";
@@ -8,6 +7,7 @@ import { DashboardProgressGroup } from "./DashboardProgressGroup";
 import { DashboardFollowupList } from "./DashboardFollowupList";
 import { DashboardRecentOffers } from "./DashboardRecentOffers";
 import { DashboardAnalyticsTeaser } from "./DashboardAnalyticsTeaser";
+import { DashboardCalendar } from "./DashboardCalendar";
 
 interface DashboardItemsManagerProps {
   onOfferClick: (offerId: string) => void;
@@ -16,126 +16,94 @@ interface DashboardItemsManagerProps {
   streak?: number;
 }
 
-export function DashboardItemsManager({ 
-  onOfferClick, 
-  onNewOfferClick, 
-  onNewOfferSuccess, 
+export function DashboardItemsManager({
+  onOfferClick,
+  onNewOfferClick,
+  onNewOfferSuccess,
   streak = 0
 }: DashboardItemsManagerProps) {
-  const { dashboardElements, setDashboardElements, dashboardElementsOrder, setDashboardElementsOrder } = useUser();
+  const { dashboardElements, dashboardElementsOrder } = useUser();
   const { offers } = useOffers();
   const [dashboardItems, setDashboardItems] = useState<string[]>([]);
 
+  // Initialize dashboard items based on order preference and availability
   useEffect(() => {
-    const showProgressGroup = dashboardElements.includes('progress') || 
-                           dashboardElements.includes('metrics') || 
-                           dashboardElements.includes('newOfferForm');
-                           
-    let orderedElements: string[] = [];
+    // Filter out any elements that aren't enabled
+    const filteredOrderedItems = dashboardElementsOrder.filter(item => 
+      dashboardElements.includes(item)
+    );
     
-    // Always put followups first if it exists in dashboardElements
-    if (dashboardElements.includes('followups')) {
-      orderedElements.push('followups');
-    }
+    // Add any elements that are enabled but not in the order
+    const missingItems = dashboardElements.filter(item => 
+      !dashboardElementsOrder.includes(item)
+    );
     
-    if (dashboardElementsOrder && dashboardElementsOrder.length > 0) {
-      // Filter the remaining elements from dashboardElementsOrder
-      const remainingOrderedElements = dashboardElementsOrder.filter(id => {
-        if (id === 'followups') return false; // Skip followups as we already added it
-        if (id === 'progressGroup' && showProgressGroup) return true;
-        if (['progress', 'metrics', 'newOfferForm'].includes(id)) return false;
-        return dashboardElements.includes(id);
-      });
-      
-      orderedElements = [...orderedElements, ...remainingOrderedElements];
-      
-      if (showProgressGroup && !orderedElements.includes('progressGroup')) {
-        // If progressGroup isn't in the ordered list yet, add it after followups
-        orderedElements.splice(1, 0, 'progressGroup');
-      }
-    } else {
-      if (showProgressGroup) {
-        orderedElements.push('progressGroup');
-      }
-      
-      // Add recent offers and analytics cards if they're enabled
-      if (dashboardElements.includes('recentOffers')) {
-        orderedElements.push('recentOffers');
-      }
-      
-      if (dashboardElements.includes('analytics')) {
-        orderedElements.push('analytics');
-      }
-    }
-    
-    setDashboardItems(orderedElements);
+    setDashboardItems([...filteredOrderedItems, ...missingItems]);
   }, [dashboardElements, dashboardElementsOrder]);
 
-  const handleElementRemove = (elementId: string) => {
-    const updatedElements = [...dashboardElements];
-    
-    if (elementId === 'progressGroup') {
-      const newElements = updatedElements.filter(id => 
-        !['progress', 'metrics', 'newOfferForm'].includes(id)
-      );
-      setDashboardElements(newElements);
-    } else {
-      const newElements = updatedElements.filter(id => id !== elementId);
-      setDashboardElements(newElements);
-    }
-    
-    setDashboardItems(prev => prev.filter(id => id !== elementId));
-    
+  // Handles when an offer is successfully created
+  const handleNewOfferSuccess = () => {
     toast({
-      title: "Element Hidden",
-      description: "You can re-enable it in Dashboard Preferences.",
+      title: "Success",
+      description: "Your offer has been logged successfully.",
     });
+    
+    // Call the parent handler
+    onNewOfferSuccess();
   };
 
+  // Render a specific dashboard element
   const renderDashboardItem = (elementId: string) => {
-    let content = null;
-    
-    if (elementId === 'progressGroup') {
-      content = (
-        <DashboardProgressGroup 
-          onNewOfferClick={onNewOfferClick}
-          onNewOfferSuccess={onNewOfferSuccess}
-          onClose={() => handleElementRemove('progressGroup')}
-        />
-      );
-    } else if (elementId === 'followups') {
-      content = (
-        <DashboardFollowupList 
-          onOfferClick={onOfferClick}
-          onClose={() => handleElementRemove('followups')}
-        />
-      );
-    } else if (elementId === 'recentOffers') {
-      content = (
-        <DashboardRecentOffers 
-          offers={offers.slice(0, 10)} 
-          onOfferClick={onOfferClick}
-          onClose={() => handleElementRemove('recentOffers')}
-        />
-      );
-    } else if (elementId === 'analytics') {
-      content = (
-        <DashboardAnalyticsTeaser 
-          onClose={() => handleElementRemove('analytics')}
-        />
-      );
+    switch (elementId) {
+      case 'progress':
+        return (
+          <DraggableDashboardItem key={elementId} elementId={elementId}>
+            <DashboardProgressGroup
+              onNewOfferClick={onNewOfferClick}
+              onNewOfferSuccess={handleNewOfferSuccess}
+              onClose={() => {}}
+              streak={streak}
+            />
+          </DraggableDashboardItem>
+        );
+      
+      case 'followups':
+        return (
+          <DraggableDashboardItem key={elementId} elementId={elementId}>
+            <DashboardFollowupList onOfferClick={onOfferClick} />
+          </DraggableDashboardItem>
+        );
+      
+      case 'recentOffers':
+        return (
+          <DraggableDashboardItem key={elementId} elementId={elementId}>
+            <DashboardRecentOffers 
+              onOfferClick={onOfferClick} 
+              offers={offers}
+            />
+          </DraggableDashboardItem>
+        );
+      
+      case 'analytics':
+        return (
+          <DraggableDashboardItem key={elementId} elementId={elementId}>
+            <DashboardAnalyticsTeaser />
+          </DraggableDashboardItem>
+        );
+        
+      case 'calendar':
+        return (
+          <DraggableDashboardItem key={elementId} elementId={elementId}>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold mb-2">Calendar View</h2>
+              <DashboardCalendar />
+            </div>
+          </DraggableDashboardItem>
+        );
+      
+      default:
+        return null;
     }
-    
-    if (!content) return null;
-    
-    return (
-      <DraggableDashboardItem
-        key={elementId}
-        elementId={elementId}
-      >
-        {content}
-      </DraggableDashboardItem>
-    );
   };
 
   return (

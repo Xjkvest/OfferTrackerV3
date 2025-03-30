@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { useUser } from "@/context/UserContext";
 import { useOffers } from "@/context/OfferContext";
+import { useFollowupManager } from "@/hooks/useFollowupManager";
 import { OfferDialog } from './OfferDialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,10 +38,12 @@ import {
   TooltipTrigger, 
   TooltipContent 
 } from "@/components/ui/tooltip";
+import { Notification } from '@/context/UserContext'; // Adjust import path as needed
 
 export function NotificationMenu() {
   const { notifications, clearNotification, markNotificationAsRead, baseOfferLink } = useUser();
   const { checkFollowups, updateOffer, offers } = useOffers();
+  const { markFollowupAsCompleted } = useFollowupManager();
   const [open, setOpen] = useState(false);
   const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
@@ -112,15 +114,22 @@ useEffect(() => {
   };
   
   // Handle marking a follow-up as complete
-  const handleMarkAsCompleted = (notification: any, e: React.MouseEvent) => {
+  const handleMarkAsCompleted = async (notification: Notification, e: React.MouseEvent) => {
     e.stopPropagation();
     if (notification.offerId) {
-      updateOffer(notification.offerId, { followupDate: undefined });
-      clearNotification(notification.id);
-      toast({
-        title: "Follow-up Completed",
-        description: `Follow-up has been marked as completed.`,
-      });
+      const offer = getOfferForNotification(notification.offerId);
+      if (offer) {
+        // Use the markFollowupAsCompleted from useFollowupManager
+        await markFollowupAsCompleted(notification.offerId, offer);
+        
+        // After successful completion, clear the notification
+        clearNotification(notification.id);
+        
+        toast({
+          title: "Follow-up Completed",
+          description: `Follow-up has been marked as completed.`,
+        });
+      }
     }
   };
 

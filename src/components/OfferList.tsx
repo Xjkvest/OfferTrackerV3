@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Offer, useOffers } from "@/context/OfferContext";
 import { useUser } from "@/context/UserContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { OfferItem } from "./OfferItem";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, Search, X, SlidersHorizontal, CalendarIcon, ListFilter, Sparkles, Download, CalendarDays } from "lucide-react";
+import { Filter, Search, X, SlidersHorizontal, CalendarIcon, ListFilter, Sparkles, Download, CalendarDays, AlertCircle, CalendarClock, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -25,6 +25,10 @@ import {
 } from "@/components/ui/dialog";
 import { exportToCsv } from "@/utils/exportData";
 import { toast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { differenceInDays } from "date-fns";
+import { filterOffers, getRecentOffers, getTodaysOffers } from "@/utils/offerFilters";
 
 interface OfferListProps {
   title?: string;
@@ -36,7 +40,36 @@ interface OfferListProps {
     showConversionFilter?: boolean;
   };
   mode?: 'today' | 'recent' | 'all';
+  searchTerm?: string;
 }
+
+// Helper function to check if an offer has active (incomplete) followups
+const hasActiveFollowup = (offer: Offer): boolean => {
+  // Check for new followups structure first
+  if (offer.followups?.length) {
+    return offer.followups.some(f => !f.completed);
+  }
+  // Fall back to legacy followupDate
+  return !!offer.followupDate;
+};
+
+// Get the most recent active followup date
+const getActiveFollowupDate = (offer: Offer): string | null => {
+  // If using new structure
+  if (offer.followups?.length) {
+    const activeFollowups = offer.followups.filter(f => !f.completed);
+    if (activeFollowups.length > 0) {
+      // Sort by date (earliest first) and return the first one
+      const sortedFollowups = [...activeFollowups].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      return sortedFollowups[0].date;
+    }
+    return null;
+  }
+  // Fall back to legacy field
+  return offer.followupDate || null;
+};
 
 export function OfferList({ 
   title = "All Offers", 
@@ -47,14 +80,15 @@ export function OfferList({
     showCSATFilter: true,
     showConversionFilter: true
   },
-  mode = 'all'
+  mode = 'all',
+  searchTerm: externalSearchTerm
 }: OfferListProps) {
-  const { offers, getFilteredOffers } = useOffers();
+  const { offers } = useOffers();
   const { channels, offerTypes } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
+  const [searchTerm, setSearchTerm] = useState(externalSearchTerm || searchParams.get("search") || "");
   const [selectedChannel, setSelectedChannel] = useState<string | null>(searchParams.get("channel"));
   const [selectedType, setSelectedType] = useState<string | null>(searchParams.get("type"));
   const [selectedCSAT, setSelectedCSAT] = useState<string | null>(searchParams.get("csat"));
@@ -68,10 +102,15 @@ export function OfferList({
   const [showFilters, setShowFilters] = useState(false);
   const isMobile = useIsMobile();
   
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [channel, setChannel] = useState<string | null>(null);
+  const [type, setType] = useState<string | null>(null);
+  
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportDateRange, setExportDateRange] = useState<string>("current");
   const [exportStartDate, setExportStartDate] = useState<Date | null>(startDate);
   const [exportEndDate, setExportEndDate] = useState<Date | null>(endDate);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const setLastWeekFilter = () => {
     const today = new Date();
@@ -107,22 +146,26 @@ export function OfferList({
     const today = new Date();
     
     switch (range) {
-      case "lastWeek":
+      case "lastWeek": {
         const lastMonday = startOfWeek(today, { weekStartsOn: 1 });
         return { startDate: lastMonday, endDate: today };
+      }
       
-      case "lastMonth":
+      case "lastMonth": {
         const firstDayOfMonth = startOfMonth(today);
         return { startDate: firstDayOfMonth, endDate: today };
+      }
       
-      case "previousMonth":
+      case "previousMonth": {
         const firstDayPrevMonth = startOfMonth(subMonths(today, 1));
         const lastDayPrevMonth = endOfMonth(subMonths(today, 1));
         return { startDate: firstDayPrevMonth, endDate: lastDayPrevMonth };
+      }
       
-      case "last30Days":
+      case "last30Days": {
         const thirtyDaysAgo = subDays(today, 30);
         return { startDate: thirtyDaysAgo, endDate: today };
+      }
       
       case "allTime":
         return { startDate: null, endDate: null };
@@ -154,7 +197,7 @@ export function OfferList({
   
   const getOffersToDisplay = () => {
     if (mode === 'recent') {
-      let recentOffers = [...offers]
+      const recentOffers = [...offers]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 30);
       
@@ -232,7 +275,53 @@ export function OfferList({
     });
   };
   
-  const filteredOffers = getOffersToDisplay();
+  const filteredOffers = useMemo(() => {
+    const dateRangeFilter = startDate && endDate 
+      ? { start: startDate, end: endDate } 
+      : undefined;
+
+    // Map string filters to proper types
+    let convertedFilter: boolean | 'converted' | 'not-converted' | undefined = undefined;
+    if (selectedConversion === 'converted') convertedFilter = 'converted';
+    if (selectedConversion === 'not-converted') convertedFilter = 'not-converted';
+
+    // Use the appropriate filter function based on mode
+    if (mode === 'recent') {
+      const recentOffers = getRecentOffers(offers, 30);
+      return filterOffers(recentOffers, {
+        dateRange: dateRangeFilter,
+        channel: selectedChannel || undefined,
+        offerType: selectedType || undefined, 
+        csat: selectedCSAT as any,
+        converted: convertedFilter,
+        searchTerm: searchTerm || undefined,
+        statusFilter: statusFilter || undefined
+      });
+    }
+    
+    if (mode === 'today') {
+      const todaysOffers = getTodaysOffers(offers);
+      return filterOffers(todaysOffers, {
+        channel: selectedChannel || undefined,
+        offerType: selectedType || undefined,
+        csat: selectedCSAT as any,
+        converted: convertedFilter,
+        searchTerm: searchTerm || undefined,
+        statusFilter: statusFilter || undefined
+      });
+    }
+    
+    // All offers with filters
+    return filterOffers(offers, {
+      dateRange: dateRangeFilter,
+      channel: selectedChannel || undefined,
+      offerType: selectedType || undefined,
+      csat: selectedCSAT as any,
+      converted: convertedFilter,
+      searchTerm: searchTerm || undefined,
+      statusFilter: statusFilter || undefined
+    });
+  }, [offers, mode, searchTerm, selectedChannel, selectedType, selectedCSAT, selectedConversion, startDate, endDate, statusFilter, refreshKey]);
   
   const activeFilterCount = [
     searchTerm,
@@ -257,7 +346,6 @@ export function OfferList({
     }
   };
   
-  const [refreshKey, setRefreshKey] = useState(0);
   const refreshList = () => setRefreshKey(prev => prev + 1);
 
   useEffect(() => {

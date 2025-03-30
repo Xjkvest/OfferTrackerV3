@@ -1,69 +1,93 @@
-# Welcome to your Lovable project
+# Offer Tracker
 
-## Project info
+A comprehensive application for tracking job offers, conversions, and performance metrics.
 
-**URL**: https://lovable.dev/projects/b237326d-f896-422a-96be-c4e18b6364f3
+## About
 
-## How can I edit this code?
+Offer Tracker is a powerful tool designed to help sales professionals and job seekers track their offers, analyze conversion rates, and visualize performance data. The application features a clean, modern interface with robust data visualization capabilities.
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- **Offer Management**: Track offers with detailed information including date, channel, case number, and notes
+- **Conversion Tracking**: Monitor which offers convert successfully and analyze conversion rates
+- **Data Visualization**: View performance metrics through charts and graphs
+- **Analytics Dashboard**: Get insights into your performance with detailed analytics
+- **Fully Offline Capable**: Works completely offline with no external dependencies
+- **PDF Reporting**: Generate comprehensive PDF reports for sharing or archiving
+- **Dark/Light Mode**: Choose your preferred visual theme
+- **PWA Support**: Install as a Progressive Web App on desktop or mobile
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b237326d-f896-422a-96be-c4e18b6364f3) and start prompting.
+## Technology Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+This application is built with:
 
-**Use your preferred IDE**
+- **React** - UI library
+- **TypeScript** - Type-safe JavaScript
+- **Vite** - Build tool and development server
+- **Tailwind CSS** - Utility-first CSS framework
+- **shadcn/ui** - UI component library
+- **react-pdf** - PDF generation
+- **Nivo** - Data visualization charts
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Getting Started
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prerequisites
 
-Follow these steps:
+- Node.js (>= 16.x)
+- npm or yarn
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Installation
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+# Clone the repository
+git clone <repository-url>
+cd offer-tracker
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at http://localhost:8080 (or another port if 8080 is in use).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Build for Production
 
-**Use GitHub Codespaces**
+```bash
+# Build the application
+npm run build
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Preview the production build
+npm run preview
+```
 
-## What technologies are used for this project?
+## Offline Support
 
-This project is built with .
+This application is designed to work completely offline. All assets, including fonts and images, are stored locally. The service worker caches resources for offline use.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Project Structure
 
-## How can I deploy this project?
+```
+offer-tracker/
+├── public/          # Static assets and PWA files
+├── src/
+│   ├── components/  # Reusable UI components
+│   ├── context/     # React context providers
+│   ├── hooks/       # Custom React hooks
+│   ├── layouts/     # Page layout components
+│   ├── lib/         # Helper libraries
+│   ├── pages/       # App pages/routes
+│   ├── utils/       # Utility functions
+│   ├── App.tsx      # Main application component
+│   └── main.tsx     # Application entry point
+└── index.html       # HTML template
+```
 
-Simply open [Lovable](https://lovable.dev/projects/b237326d-f896-422a-96be-c4e18b6364f3) and click on Share -> Publish.
+## License
 
-## I want to use a custom domain - is that possible?
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

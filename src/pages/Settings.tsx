@@ -1,6 +1,6 @@
-
 import React from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { 
   ProfileSettings,
   OfferConfiguration,
@@ -11,8 +11,14 @@ import {
   ImportOffers,
   ResetAppSection
 } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StreakSettings } from "@/components/settings/StreakSettings";
 
 const Settings = () => {
+  const navigate = useNavigate();
+  
+  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -24,63 +30,59 @@ const Settings = () => {
   };
   
   const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
-      y: 0,
       opacity: 1,
-      transition: { type: "spring", stiffness: 300, damping: 24 }
+      y: 0,
+      transition: { type: 'spring', stiffness: 100 }
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen relative">
-      <motion.main 
-        className="flex-1 container max-w-4xl mx-auto p-4 pb-24"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <motion.div variants={itemVariants}>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent mb-2">Settings</h1>
-          <p className="text-muted-foreground mb-8">
-            Customize your offer tracking experience
-          </p>
-        </motion.div>
+    <div className="container py-6 space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/')}
+        >
+          Back to Dashboard
+        </Button>
+      </div>
+
+      <Tabs defaultValue="preferences" className="w-full">
+        <TabsList className="mb-4 flex flex-wrap h-auto p-1">
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger>
+          <TabsTrigger value="streak">Streak</TabsTrigger>
+          <TabsTrigger value="offerSetup">Offer Setup</TabsTrigger>
+          <TabsTrigger value="reset">Reset</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="preferences" className="space-y-4">
+          <ProfileSettings />
+          <FollowupPreferences />
+        </TabsContent>
+
+        <TabsContent value="appearance" className="space-y-4">
+          <DashboardPreferences />
+          <AppearanceLayout />
+        </TabsContent>
         
-        <div className="space-y-6">
-          <motion.div variants={itemVariants}>
-            <ProfileSettings />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <OfferConfiguration />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <FollowupPreferences />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <DashboardPreferences />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <AppearanceLayout />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <CaseLinkSettings />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <ImportOffers />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <ResetAppSection />
-          </motion.div>
-        </div>
-      </motion.main>
+        <TabsContent value="streak" className="space-y-4">
+          <StreakSettings />
+        </TabsContent>
+
+        <TabsContent value="offerSetup" className="space-y-4">
+          <OfferConfiguration />
+          <CaseLinkSettings />
+        </TabsContent>
+
+        <TabsContent value="reset" className="space-y-4">
+          <ImportOffers />
+          <ResetAppSection />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

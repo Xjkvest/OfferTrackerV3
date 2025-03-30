@@ -1,10 +1,11 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useOffers } from "@/context/OfferContext";
 import { toast } from "@/hooks/use-toast";
+import { Offer } from "@/context/OfferContext";
+import { dialogManager } from "@/components/OfferDialog";
 
 // Define form schema with Zod - updated to include conversionDate
 export const offerFormSchema = z.object({
@@ -28,6 +29,9 @@ export function useOfferForm({ onSuccess, initialValues, offerId }: UseOfferForm
   const { addOffer, updateOffer, offers } = useOffers();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [existingOffer, setExistingOffer] = useState<Offer | null>(null);
+  const [pendingData, setPendingData] = useState<OfferFormValues | null>(null);
   
   // Initialize form with react-hook-form
   const form = useForm<OfferFormValues>({
@@ -42,77 +46,127 @@ export function useOfferForm({ onSuccess, initialValues, offerId }: UseOfferForm
     },
   });
 
-  const checkForDuplicates = (caseNumber: string): boolean => {
+  const findDuplicateOffer = (caseNumber: string): Offer | null => {
     if (!offerId) {
       // Only check for duplicates when creating a new offer
-      return offers.some(offer => offer.caseNumber === caseNumber);
+      return offers.find(offer => offer.caseNumber === caseNumber) || null;
     } else {
-      // When editing, check if there's another offer (not this one) with the same case number
-      return offers.some(offer => offer.caseNumber === caseNumber && offer.id !== offerId);
+      // When editing, only check if case number has been changed from original
+      const originalOffer = offers.find(offer => offer.id === offerId);
+      if (originalOffer && originalOffer.caseNumber !== caseNumber) {
+        // Check if another offer (not this one) has the same case number
+        return offers.find(offer => offer.caseNumber === caseNumber && offer.id !== offerId) || null;
+      }
+      return null;
     }
   };
 
-  const onSubmit = async (data: OfferFormValues) => {
+  const handleEditExisting = () => {
+    if (existingOffer) {
+      // Clear state before dispatching event to prevent multiple triggers
+      setShowDuplicateDialog(false);
+      setPendingData(null);
+
+      // Use the dialog manager to notify about the edit
+      dialogManager.setActiveDialog(existingOffer.id);
+      
+      // Trigger any onSuccess callback to close current form if needed
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess();
+        }, 100);
+      }
+      
+      // Clear existing offer after setting the active dialog
+      setExistingOffer(null);
+    }
+  };
+
+  const handleForceSave = async () => {
+    if (pendingData) {
+      await handleSubmit(pendingData);
+      setPendingData(null);
+    }
+    setShowDuplicateDialog(false);
+    setExistingOffer(null);
+  };
+
+  const handleSubmitWithDuplicateCheck = async (data: OfferFormValues) => {
     setIsSubmitting(true);
     
     // Check for duplicate case numbers
-    const isDuplicate = checkForDuplicates(data.caseNumber);
-    if (isDuplicate) {
-      toast({
-        title: "Duplicate Case Number",
-        description: "This case number already exists in your records.",
-        variant: "destructive",
-      });
+    const duplicate = findDuplicateOffer(data.caseNumber);
+    if (duplicate) {
+      setExistingOffer(duplicate);
+      setPendingData(data);
+      setShowDuplicateDialog(true);
       setIsSubmitting(false);
       return;
     }
     
-    // Simulate a slight delay for a better UX
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
+    await handleSubmit(data);
+  };
+
+  const handleSubmit = async (data: OfferFormValues) => {
     try {
+      setIsSubmitting(true);
+      
+      // Create an immutable copy of the form data
+      const immutableData = JSON.parse(JSON.stringify(data));
+      
       if (offerId) {
-        // Update existing offer
-        const updates: Partial<OfferFormValues & { csat?: 'positive' | 'neutral' | 'negative' | undefined; converted?: boolean }> = {
-          ...data,
-          csat: initialValues?.csat,
+        // Handle update case
+        const updates: Partial<OfferFormValues & { 
+          csat?: 'positive' | 'neutral' | 'negative' | undefined; 
+          converted?: boolean;
+          csatComment?: string;
+        }> = {
+          ...immutableData,
         };
         
-        // Set converted based on conversionDate
-        if (data.conversionDate) {
-          updates.converted = true;
-        } else if (initialValues?.converted) {
-          // Only set to false if it was explicitly marked as converted before
-          // and now the date is removed
-          updates.converted = false;
+        // Preserve CSAT rating
+        if (initialValues?.csat !== undefined) {
+          updates.csat = initialValues.csat;
         }
         
-        updateOffer(offerId, updates);
+        // Handle conversion status
+        if (immutableData.conversionDate) {
+          updates.converted = true;
+        } else if (initialValues?.converted) {
+          updates.converted = false;
+        }
+
+        // Preserve comments
+        const existingOffer = offers.find(offer => offer.id === offerId);
+        if (existingOffer?.csatComment) {
+          updates.csatComment = existingOffer.csatComment;
+        }
+        
+        // Update the offer
+        await updateOffer(offerId, updates);
+        
+        // Reset form to show the updated values
+        form.reset(immutableData);
       } else {
-        // Add new offer - ensure required fields are present
+        // Handle create case
         const newOffer: any = {
-          caseNumber: data.caseNumber,
-          channel: data.channel,
-          offerType: data.offerType,
-          notes: data.notes || "",
-          followupDate: data.followupDate,
+          caseNumber: immutableData.caseNumber,
+          channel: immutableData.channel,
+          offerType: immutableData.offerType,
+          notes: immutableData.notes || "",
+          followupDate: immutableData.followupDate,
           csat: undefined,
-          converted: false, // Default new offers to not converted
+          converted: false,
         };
         
-        // Handle conversion date if provided
-        if (data.conversionDate) {
-          newOffer.conversionDate = data.conversionDate;
+        if (immutableData.conversionDate) {
+          newOffer.conversionDate = immutableData.conversionDate;
           newOffer.converted = true;
         }
         
-        addOffer(newOffer);
-      }
-      
-      setIsSuccess(true);
-      
-      // Reset form if it's a new offer
-      if (!offerId) {
+        await addOffer(newOffer);
+        
+        // Reset form to empty values
         form.reset({
           caseNumber: "",
           channel: "",
@@ -123,11 +177,12 @@ export function useOfferForm({ onSuccess, initialValues, offerId }: UseOfferForm
         });
       }
       
-      // Show success state briefly
+      // Show success state but briefly
+      setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         if (onSuccess) onSuccess();
-      }, 1000);
+      }, 300); 
     } catch (error) {
       toast({
         title: "Error",
@@ -143,6 +198,11 @@ export function useOfferForm({ onSuccess, initialValues, offerId }: UseOfferForm
     form,
     isSubmitting,
     isSuccess,
-    onSubmit: form.handleSubmit(onSubmit),
+    showDuplicateDialog,
+    existingOffer,
+    onSubmit: form.handleSubmit(handleSubmitWithDuplicateCheck),
+    handleForceSave,
+    handleEditExisting,
+    setShowDuplicateDialog,
   };
 }

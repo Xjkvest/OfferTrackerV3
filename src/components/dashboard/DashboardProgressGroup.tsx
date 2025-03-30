@@ -24,11 +24,12 @@ interface DashboardProgressGroupProps {
   onNewOfferClick: () => void;
   onNewOfferSuccess: () => void;
   onClose?: () => void;
+  streak?: number;
 }
 
-export function DashboardProgressGroup({ onNewOfferClick, onNewOfferSuccess, onClose }: DashboardProgressGroupProps) {
-  const { dailyGoal, dashboardElements } = useUser();
-  const { todaysOffers, offers, streak = 0 } = useOffers();
+export function DashboardProgressGroup({ onNewOfferClick, onNewOfferSuccess, onClose, streak: customStreak }: DashboardProgressGroupProps) {
+  const { dailyGoal, dashboardElements, settings = {} } = useUser();
+  const { todaysOffers, offers, streak = customStreak || 0 } = useOffers();
   const { theme } = useTheme();
   
   // Calculate metrics
@@ -163,6 +164,7 @@ export function DashboardProgressGroup({ onNewOfferClick, onNewOfferSuccess, onC
                       conversionPercentage={conversionPercentage}
                       conversions={conversions}
                       streak={streak}
+                      settings={settings}
                       compact={true}
                     />
                   </div>
@@ -227,6 +229,7 @@ export function DashboardProgressGroup({ onNewOfferClick, onNewOfferSuccess, onC
                   conversionPercentage={conversionPercentage}
                   conversions={conversions}
                   streak={streak}
+                  settings={settings}
                   compact={false}
                 />
               </div>
