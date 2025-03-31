@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "start": "electron .",
     "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
-    "electron:build": "npm run build && electron-builder build --mac"
+    "electron:build": "npm run build && electron-builder build --mac",
+    "deploy": "npm run build && npx wrangler deploy --assets=./dist"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
