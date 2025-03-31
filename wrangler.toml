@@ -1,6 +1,5 @@
 name = "offer-tracker"
 compatibility_date = "2025-03-31"
-main = "./dist/_worker.js"
 
 [site]
 bucket = "./dist"
