@@ -95,19 +95,24 @@ export const OfferProvider: React.FC<OfferProviderProps> = ({ children }) => {
   useEffect(() => {
     const loadOffers = async () => {
       setIsLoading(true);
+      console.log('Starting to load offers...');
       try {
         const storedOffers = await storageService.getOffers();
+        console.log('Retrieved offers from storage:', storedOffers);
         if (storedOffers) {
           // Check conversion status when loading offers
           const updatedOffers = updateOffersWithConversionStatus(storedOffers);
+          console.log('Updated offers with conversion status:', updatedOffers);
           
           // Migrate legacy followup dates to the new structure
           const migratedOffers = migrateFollowupDates(updatedOffers);
+          console.log('Migrated offers:', migratedOffers);
           
           setOffers(migratedOffers);
           
           // Save any automatic updates back to storage
           if (JSON.stringify(storedOffers) !== JSON.stringify(migratedOffers)) {
+            console.log('Saving migrated offers back to storage...');
             await storageService.saveOffers(migratedOffers);
           }
         }
@@ -119,6 +124,7 @@ export const OfferProvider: React.FC<OfferProviderProps> = ({ children }) => {
           variant: "destructive",
         });
       } finally {
+        console.log('Finished loading offers, setting isLoading to false');
         setIsLoading(false);
       }
     };

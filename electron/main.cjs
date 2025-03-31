@@ -1,12 +1,36 @@
 const { app, BrowserWindow, Menu, session, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 
-const isDev = process.env.NODE_ENV === 'development';
+// Force development mode when running with electron:dev
+const isDev = process.env.npm_lifecycle_event === 'electron:dev';
 
 let mainWindow;
 
-function createWindow() {
+// Function to check if a port is available
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = http.createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port);
+  });
+}
+
+// Function to find an available port
+async function findAvailablePort(startPort) {
+  let port = startPort;
+  while (!(await isPortAvailable(port))) {
+    port++;
+  }
+  return port;
+}
+
+async function createWindow() {
   console.log('Creating main window...');
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -23,6 +47,36 @@ function createWindow() {
   
   console.log('Setting up IPC handlers...');
   console.log('Preload path:', path.join(__dirname, 'preload.cjs'));
+  console.log('Development mode:', isDev);
+
+  // Load the app URL
+  if (isDev) {
+    // Find the first available port starting from 5173
+    const port = await findAvailablePort(5173);
+    const appUrl = `http://localhost:${port}`;
+    console.log('Loading development URL:', appUrl);
+    
+    // Wait for the dev server to be ready
+    const waitForServer = async () => {
+      try {
+        const response = await fetch(appUrl);
+        if (response.ok) {
+          mainWindow.loadURL(appUrl);
+          mainWindow.webContents.openDevTools();
+        } else {
+          setTimeout(waitForServer, 1000);
+        }
+      } catch (error) {
+        setTimeout(waitForServer, 1000);
+      }
+    };
+    
+    waitForServer();
+  } else {
+    const appUrl = `file://${path.join(__dirname, '../dist/index.html')}`;
+    console.log('Loading production URL:', appUrl);
+    mainWindow.loadURL(appUrl);
+  }
 
   // Handle PDF save events from renderer
   ipcMain.handle('save-pdf', async (event, { pdfBase64, defaultFileName }) => {
@@ -151,18 +205,6 @@ function createWindow() {
       }
     });
   });
-
-  // Load the app
-  if (isDev) {
-    // In development, load from the dev server
-    console.log('Loading from dev server...');
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-  } else {
-    // In production, load the built files
-    console.log('Loading from dist folder...');
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-  }
 
   // Create the Application's main menu
   const template = [

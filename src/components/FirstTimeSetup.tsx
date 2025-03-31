@@ -227,7 +227,7 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
         <div className="relative z-10 mb-5 px-2">
           <div className="flex items-center justify-between w-full max-w-md mx-auto">
             {steps.map((stepItem, i) => (
-              <React.Fragment key={i}>
+              <div key={i} data-lov-id={`step-${i}`}>
                 <div className="flex flex-col items-center">
                   <motion.div 
                     className={`relative flex items-center justify-center w-8 h-8 rounded-full border-2 
@@ -261,7 +261,7 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
                     />
                   </div>
                 )}
-              </React.Fragment>
+              </div>
             ))}
           </div>
         </div>

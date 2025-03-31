@@ -139,37 +139,31 @@ export function OfferDialog({ open, onOpenChange, offerId, onSetupComplete }: Of
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className={getDialogClass()}>
-        {showSetup ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Welcome to Offer Tracker</DialogTitle>
+        <DialogHeader>
+          <DialogTitle>{getDialogTitle()}</DialogTitle>
+          {showSetup ? (
+            <>
               <DialogDescription>
                 Set up your profile and preferences to get started.
               </DialogDescription>
-            </DialogHeader>
-            <FirstTimeSetup onComplete={handleSetupComplete} />
-          </>
-        ) : selectedOffer ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Offer Details</DialogTitle>
+              <FirstTimeSetup onComplete={handleSetupComplete} />
+            </>
+          ) : selectedOffer ? (
+            <>
               <DialogDescription>
                 View and manage details for this offer
               </DialogDescription>
-            </DialogHeader>
-            <OfferDetails offer={selectedOffer} onClose={handleClose} />
-          </>
-        ) : (
-          <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 p-5 rounded-lg">
-            <DialogHeader className="pb-2">
-              <DialogTitle className="text-lg font-medium">{getDialogTitle()}</DialogTitle>
+              <OfferDetails offer={selectedOffer} onClose={handleClose} />
+            </>
+          ) : (
+            <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 p-5 rounded-lg">
               <DialogDescription className="text-sm text-muted-foreground">
                 Quickly add a new offer to your tracker.
               </DialogDescription>
-            </DialogHeader>
-            <OfferForm onSuccess={handleClose} className="pt-2" />
-          </div>
-        )}
+              <OfferForm onSuccess={handleClose} className="pt-2" />
+            </div>
+          )}
+        </DialogHeader>
       </DialogContent>
     </Dialog>
   );

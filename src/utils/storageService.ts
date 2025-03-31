@@ -12,22 +12,35 @@ export const storageService = {
   // Offers data
   async getOffers() {
     try {
+      console.log('Attempting to get offers from IndexedDB...');
       const offers = await get('offers', offerStore);
-      return offers || JSON.parse(localStorage.getItem('offers') || '[]');
+      console.log('IndexedDB offers:', offers);
+      if (offers) {
+        return offers;
+      }
+      console.log('No offers in IndexedDB, checking localStorage...');
+      const localOffers = JSON.parse(localStorage.getItem('offers') || '[]');
+      console.log('localStorage offers:', localOffers);
+      return localOffers;
     } catch (error) {
       console.error('Error getting offers from IndexedDB:', error);
+      console.log('Falling back to localStorage...');
       return JSON.parse(localStorage.getItem('offers') || '[]');
     }
   },
 
   async saveOffers(offers: any[]) {
     try {
+      console.log('Attempting to save offers to IndexedDB...');
       await set('offers', offers, offerStore);
+      console.log('Successfully saved to IndexedDB');
       // Keep localStorage in sync as a fallback
       localStorage.setItem('offers', JSON.stringify(offers));
+      console.log('Successfully saved to localStorage');
       return true;
     } catch (error) {
       console.error('Error saving offers to IndexedDB:', error);
+      console.log('Falling back to localStorage only...');
       localStorage.setItem('offers', JSON.stringify(offers));
       return false;
     }

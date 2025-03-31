@@ -22,8 +22,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { saveAs } from "file-saver";
-import * as XLSX from "xlsx";
 import { exportImportTemplate } from "@/utils/exportData";
+import { importFromExcel, importFromCSV } from '@/utils/importData';
+import { Offer } from '@/context/OfferContext';
 
 // Accept both lowercase and uppercase column names for flexibility
 const REQUIRED_HEADERS = ["date", "offerType", "channel"];
@@ -55,7 +56,11 @@ const COLUMN_INSTRUCTIONS = {
   followupDate: "OPTIONAL: The date for following up (YYYY-MM-DD format, ISO format, or blank for none)"
 };
 
-export function ImportOffers() {
+interface ImportOffersProps {
+  onImport: (offers: Offer[]) => void;
+}
+
+export const ImportOffers: React.FC<ImportOffersProps> = ({ onImport }) => {
   const { offers, addOffer, updateOffer } = useOffers();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -65,6 +70,7 @@ export function ImportOffers() {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [importComplete, setImportComplete] = useState(false);
   const [importStatus, setImportStatus] = useState<{added: number, skipped: number}>({ added: 0, skipped: 0 });
+  const [isImporting, setIsImporting] = useState(false);
   
   const downloadTemplate = () => {
     exportImportTemplate();
@@ -75,208 +81,184 @@ export function ImportOffers() {
     });
   };
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setErrors([]);
-    setCsvData([]);
-    setDuplicates([]);
-    setImportComplete(false);
-    
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        if (!evt.target?.result) return;
-        
-        const workbook = XLSX.read(evt.target.result, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-        
-        // Process the data
-        if (data.length <= 1) {
-          setErrors(["The file appears to be empty or only contains headers."]);
-          return;
-        }
-        
-        // Map the headers to our expected headers, accounting for alternatives
-        const headerRow = data[0] as string[];
-        const normalizedHeaders = headerRow.map(header => {
-          if (typeof header !== 'string') return String(header);
-          const headerLower = header.toLowerCase().trim();
-          
-          // Find the matching standard header key
-          for (const [standardKey, alternatives] of Object.entries(HEADER_ALTERNATIVES)) {
-            if (alternatives.includes(headerLower)) {
-              return standardKey;
-            }
-          }
-          return headerLower; // Return as-is if no match
-        });
-        
-        // Check for missing required headers
-        const missingRequiredHeaders = [];
-        for (const requiredHeader of REQUIRED_HEADERS) {
-          if (!normalizedHeaders.includes(requiredHeader)) {
-            missingRequiredHeaders.push(requiredHeader);
-          }
-        }
-        
-        if (missingRequiredHeaders.length > 0) {
-          setErrors([`Missing required columns: ${missingRequiredHeaders.join(', ')}`]);
-          return;
-        }
-        
-        // Convert data to objects with normalized keys
-        const jsonData = [];
-        for (let i = 1; i < data.length; i++) {
-          const row = data[i] as any[];
-          if (row.every(cell => cell === "")) continue; // Skip completely empty rows
-          
-          const obj: Record<string, any> = {};
-          for (let j = 0; j < normalizedHeaders.length; j++) {
-            if (j < row.length) {
-              obj[normalizedHeaders[j]] = row[j];
-            }
-          }
-          jsonData.push(obj);
-        }
-        
-        validateCsvData(jsonData);
-      } catch (error) {
-        console.error("CSV parsing error:", error);
-        setErrors(["Failed to parse CSV file. Please ensure it's properly formatted."]);
-      }
-    };
-    
-    reader.readAsArrayBuffer(file);
-  };
-  
-  const validateCsvData = (data: any[]) => {
-    if (data.length === 0) {
-      setErrors(["The file appears to be empty."]);
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      console.debug('[ImportOffers] No file selected');
       return;
     }
+
+    console.debug('[ImportOffers] Starting import for file:', file.name);
+    setIsImporting(true);
+    setErrors([]);
+    setImportComplete(false);
     
-    const newErrors: string[] = [];
-    const validData: any[] = [];
-    const duplicateData: any[] = [];
-    
-    // Validate data types and find duplicates
-    data.forEach((row, index) => {
-      // Skip entirely empty rows
-      if (Object.values(row).every(val => val === "")) return;
+    try {
+      let importedOffers: Offer[];
       
-      // Check required fields
-      if (!row.date) {
-        newErrors.push(`Missing required field 'date' at row ${index + 1}`);
+      if (file.name.endsWith('.xlsx')) {
+        console.debug('[ImportOffers] Processing Excel file');
+        importedOffers = await importFromExcel(file);
+      } else if (file.name.endsWith('.csv')) {
+        console.debug('[ImportOffers] Processing CSV file');
+        importedOffers = await importFromCSV(file);
+      } else {
+        throw new Error('Unsupported file format. Please use .xlsx or .csv files.');
+      }
+
+      console.debug('[ImportOffers] Imported offers:', importedOffers.length);
+      if (importedOffers.length === 0) {
+        throw new Error('No valid offers found in the file.');
+      }
+
+      // Validate the imported data
+      const { validOffers, duplicateOffers, validationErrors } = validateImportedOffers(importedOffers);
+      
+      if (validationErrors.length > 0) {
+        setErrors(validationErrors);
         return;
       }
-      
-      if (!row.offerType) {
-        newErrors.push(`Missing required field 'offerType' at row ${index + 1}`);
+
+      if (duplicateOffers.length > 0) {
+        setDuplicates(duplicateOffers);
+        setCsvData(validOffers);
+        setShowDuplicateDialog(true);
         return;
       }
-      
-      if (!row.channel) {
-        newErrors.push(`Missing required field 'channel' at row ${index + 1}`);
+
+      // If no duplicates, proceed with import
+      await importValidOffers(validOffers);
+
+    } catch (error) {
+      console.error('[ImportOffers] Import error:', error);
+      toast({
+        description: error instanceof Error ? error.message : 'Failed to import offers.',
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const validateImportedOffers = (importedOffers: Offer[]) => {
+    const validationErrors: string[] = [];
+    const validOffers: Offer[] = [];
+    const duplicateOffers: Offer[] = [];
+
+    importedOffers.forEach((offer, index) => {
+      // Validate required fields
+      if (!offer.date) {
+        validationErrors.push(`Missing required field 'date' at row ${index + 1}`);
         return;
       }
-      
-      // Convert boolean strings to actual booleans
-      if (typeof row.converted === 'string') {
-        row.converted = row.converted.toLowerCase() === 'true';
+      if (!offer.offerType) {
+        validationErrors.push(`Missing required field 'offerType' at row ${index + 1}`);
+        return;
       }
-      
-      // Validate CSAT values
-      if (row.csat && !['positive', 'neutral', 'negative'].includes(row.csat.toLowerCase())) {
-        // Convert number ratings to sentiment strings
-        const csatNum = parseInt(row.csat);
-        if (!isNaN(csatNum)) {
-          if (csatNum >= 4) row.csat = 'positive';
-          else if (csatNum >= 2) row.csat = 'neutral';
-          else row.csat = 'negative';
-        } else {
-          // Try to normalize text values
-          const csatLower = row.csat.toLowerCase();
-          if (csatLower.includes('good') || csatLower.includes('great') || csatLower.includes('pos')) {
-            row.csat = 'positive';
-          } else if (csatLower.includes('bad') || csatLower.includes('neg')) {
-            row.csat = 'negative';
-          } else if (csatLower.includes('neut') || csatLower.includes('ok')) {
-            row.csat = 'neutral';
-          } else {
-            newErrors.push(`Invalid CSAT value at row ${index + 1}: '${row.csat}' (must be 'positive', 'neutral', or 'negative')`);
-          }
-        }
+      if (!offer.channel) {
+        validationErrors.push(`Missing required field 'channel' at row ${index + 1}`);
+        return;
       }
-      
-      // Ensure proper date format
+
+      // Validate dates
       try {
-        if (row.date) {
-          const date = new Date(row.date);
-          if (isNaN(date.getTime())) {
-            newErrors.push(`Invalid date format at row ${index + 1}: '${row.date}'`);
-            return;
-          }
+        const date = new Date(offer.date);
+        if (isNaN(date.getTime())) {
+          validationErrors.push(`Invalid date format at row ${index + 1}: '${offer.date}'`);
+          return;
         }
-        
-        if (row.followupDate && row.followupDate !== "") {
-          const followupDate = new Date(row.followupDate);
+
+        if (offer.followupDate) {
+          const followupDate = new Date(offer.followupDate);
           if (isNaN(followupDate.getTime())) {
-            newErrors.push(`Invalid followup date format at row ${index + 1}: '${row.followupDate}'`);
+            validationErrors.push(`Invalid followup date format at row ${index + 1}: '${offer.followupDate}'`);
             return;
           }
         }
       } catch (e) {
-        newErrors.push(`Error processing dates at row ${index + 1}`);
+        validationErrors.push(`Error processing dates at row ${index + 1}`);
         return;
       }
-      
-      // Check for duplicates based on case number and date
-      const isDuplicate = row.caseNumber && offers.some(offer => 
-        offer.caseNumber === row.caseNumber && 
-        offer.caseNumber !== "" && // Only check if case number is not empty
-        new Date(offer.date).toDateString() === new Date(row.date).toDateString()
+
+      // Check for duplicates
+      const isDuplicate = offer.caseNumber && offers.some(existingOffer => 
+        existingOffer.caseNumber === offer.caseNumber && 
+        existingOffer.caseNumber !== "" && 
+        new Date(existingOffer.date).toDateString() === new Date(offer.date).toDateString()
       );
-      
+
       if (isDuplicate) {
-        duplicateData.push(row);
+        duplicateOffers.push(offer);
       } else {
-        validData.push(row);
+        validOffers.push(offer);
       }
     });
-    
-    setErrors(newErrors);
-    setCsvData(validData);
-    setDuplicates(duplicateData);
-    
-    // If we have duplicates, show the dialog
-    if (duplicateData.length > 0) {
-      setShowDuplicateDialog(true);
-    } else if (newErrors.length === 0 && validData.length > 0) {
-      importOffers(validData);
+
+    return { validOffers, duplicateOffers, validationErrors };
+  };
+
+  const importValidOffers = async (validOffers: Offer[]) => {
+    let successCount = 0;
+    const importErrors: string[] = [];
+
+    for (const offer of validOffers) {
+      try {
+        await addOffer({
+          caseNumber: offer.caseNumber || "",
+          channel: offer.channel,
+          offerType: offer.offerType,
+          notes: offer.notes || "",
+          converted: offer.converted,
+          csat: offer.csat || undefined,
+          csatComment: offer.csatComment || "",
+          followupDate: offer.followupDate ? new Date(offer.followupDate).toISOString() : undefined,
+        });
+        successCount++;
+      } catch (error) {
+        console.error("Error importing offer:", error, offer);
+        importErrors.push(`Error importing offer with case number ${offer.caseNumber || 'unknown'}: ${error}`);
+      }
+    }
+
+    if (importErrors.length > 0) {
+      setErrors(importErrors);
+    }
+
+    setImportComplete(true);
+    setImportStatus({
+      added: successCount,
+      skipped: duplicates.length
+    });
+
+    if (successCount > 0) {
+      toast({
+        title: "Import Successful",
+        description: `✅ ${successCount} offers imported successfully`,
+      });
     }
   };
-  
-  const handleSkipDuplicates = () => {
+
+  const handleSkipDuplicates = async () => {
     setShowDuplicateDialog(false);
-    importOffers(csvData);
+    await importValidOffers(csvData);
   };
-  
-  const handleReplaceDuplicates = () => {
+
+  const handleReplaceDuplicates = async () => {
     setShowDuplicateDialog(false);
     
     // First update existing offers
-    duplicates.forEach(duplicate => {
+    for (const duplicate of duplicates) {
       const existingOffer = offers.find(offer => 
         offer.caseNumber === duplicate.caseNumber && 
         new Date(offer.date).toDateString() === new Date(duplicate.date).toDateString()
       );
       
       if (existingOffer) {
-        updateOffer(existingOffer.id, {
+        await updateOffer(existingOffer.id, {
           offerType: duplicate.offerType,
           channel: duplicate.channel,
           notes: duplicate.notes,
@@ -286,51 +268,10 @@ export function ImportOffers() {
           followupDate: duplicate.followupDate
         });
       }
-    });
+    }
     
     // Then import the non-duplicate entries
-    importOffers([...csvData, ...duplicates]);
-  };
-  
-  const importOffers = (data: any[]) => {
-    // Add all valid offers
-    let successCount = 0;
-    
-    data.forEach(row => {
-      try {
-        addOffer({
-          caseNumber: row.caseNumber || "",
-          channel: row.channel,
-          offerType: row.offerType,
-          notes: row.notes || "",
-          converted: row.converted,
-          csat: row.csat || undefined,
-          csatComment: row.csatComment || "",
-          followupDate: row.followupDate ? new Date(row.followupDate).toISOString() : undefined,
-        });
-        successCount++;
-      } catch (error) {
-        console.error("Error importing offer:", error, row);
-        setErrors(prev => [...prev, `Error importing row with case number ${row.caseNumber || 'unknown'}: ${error}`]);
-      }
-    });
-    
-    setImportComplete(true);
-    setImportStatus({
-      added: successCount,
-      skipped: duplicates.length
-    });
-    
-    // Show toast
-    toast({
-      title: "Import Successful",
-      description: `✅ ${successCount} offers imported successfully`,
-    });
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    await importValidOffers([...csvData, ...duplicates]);
   };
 
   return (
@@ -435,16 +376,17 @@ export function ImportOffers() {
                 ref={fileInputRef}
                 id="csvFile"
                 type="file"
-                accept=".csv"
-                onChange={handleFileChange}
+                accept=".csv,.xlsx"
+                onChange={handleFileImport}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
               <Button 
                 variant="default" 
                 className="w-full"
+                onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Upload CSV
+                Upload File
               </Button>
             </div>
           </div>

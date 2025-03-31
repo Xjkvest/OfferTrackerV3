@@ -174,16 +174,85 @@ export const ConversionVelocityAnalysis: React.FC<ConversionVelocityAnalysisProp
 
   // Calculate velocity metrics
   const velocityMetrics = useMemo(() => {
-    // Only include offers that have valid conversion data
-    const convertedOffers = offersToAnalyze.filter(o => 
-      o.converted === true && 
-      o.conversionDate && 
-      o.date &&
-      // Ensure conversion date is after offer date (avoid data errors)
-      new Date(o.conversionDate).getTime() >= new Date(o.date).getTime()
-    );
+    // Debug logging to identify issues
+    console.log('[ConversionVelocity] Total offers to analyze:', offersToAnalyze.length);
+    
+    // Log conversion status distribution
+    const convertedCount = offersToAnalyze.filter(o => o.converted === true).length;
+    const unconvertedCount = offersToAnalyze.filter(o => o.converted === false).length;
+    const undefinedCount = offersToAnalyze.filter(o => o.converted === undefined).length;
+    console.log('[ConversionVelocity] Conversion status distribution:', {
+      convertedCount,
+      unconvertedCount,
+      undefinedCount,
+      total: convertedCount + unconvertedCount + undefinedCount
+    });
+    
+    // Check for conversion dates
+    const withConversionDate = offersToAnalyze.filter(o => o.converted && o.conversionDate).length;
+    const withoutConversionDate = offersToAnalyze.filter(o => o.converted && !o.conversionDate).length;
+    console.log('[ConversionVelocity] Conversion date presence:', {
+      withConversionDate,
+      withoutConversionDate
+    });
+    
+    // Only include offers that have valid conversion data - RELAXED VALIDATION
+    const convertedOffers = offersToAnalyze.filter(o => {
+      // Require converted flag to be true
+      if (o.converted !== true) {
+        return false;
+      }
+      
+      // If no conversionDate, can't calculate velocity
+      if (!o.conversionDate) {
+        console.debug('[ConversionVelocity] Offer is marked as converted but missing conversionDate:', o.id);
+        return false;
+      }
+      
+      // If no offer date, can't calculate velocity
+      if (!o.date) {
+        console.debug('[ConversionVelocity] Offer is missing date field:', o.id);
+        return false;
+      }
+      
+      // Try to parse the dates, but don't strictly validate
+      try {
+        const convDate = new Date(o.conversionDate);
+        const offerDate = new Date(o.date);
+        
+        // Allow any non-NaN dates regardless of relation between them
+        if (isNaN(convDate.getTime())) {
+          console.debug('[ConversionVelocity] Invalid conversion date format:', o.conversionDate, 'for offer:', o.id);
+          return false;
+        }
+        
+        if (isNaN(offerDate.getTime())) {
+          console.debug('[ConversionVelocity] Invalid offer date format:', o.date, 'for offer:', o.id);
+          return false;
+        }
+        
+        // Even if conversionDate is before offerDate, still include it but log the issue
+        if (convDate < offerDate) {
+          console.warn(
+            '[ConversionVelocity] Conversion date is before offer date:',
+            'id:', o.id,
+            'offerDate:', offerDate.toISOString(),
+            'conversionDate:', convDate.toISOString()
+          );
+          // Still return true to include it in analysis
+        }
+        
+        return true;
+      } catch (e) {
+        console.error('[ConversionVelocity] Error parsing dates for offer:', o.id, e);
+        return false;
+      }
+    });
+    
+    console.log('[ConversionVelocity] Valid converted offers for analysis:', convertedOffers.length);
     
     if (convertedOffers.length === 0) {
+      console.debug('[ConversionVelocity] No valid converted offers found for analysis');
       // Return default empty state if no valid offers
       return {
         avgTimeToConvert: 0,
@@ -200,190 +269,266 @@ export const ConversionVelocityAnalysis: React.FC<ConversionVelocityAnalysisProp
     
     // Calculate average time to convert (in hours)
     const conversionTimes = convertedOffers.map(offer => {
-      const conversionTime = new Date(offer.conversionDate!).getTime();
-      const offerTime = new Date(offer.date).getTime();
-      // Convert ms to hours
-      return (conversionTime - offerTime) / (1000 * 60 * 60);
+      const conversionDate = new Date(offer.conversionDate!);
+      const offerDate = new Date(offer.date);
+      
+      // Handle case where conversion is before offer date (data error)
+      // Instead of negative time, use a small positive value
+      if (conversionDate < offerDate) {
+        console.warn('[ConversionVelocity] Using minimum time for offer with conversion before offer date:', offer.id);
+        return 0.1; // 6 minutes as minimum time
+      }
+      
+      const timeToConvert = Math.max(0.1, (conversionDate.getTime() - offerDate.getTime()) / (1000 * 60 * 60));
+      
+      if (timeToConvert > 720) { // More than 30 days
+        console.debug(
+          '[ConversionVelocity] Long conversion time detected:',
+          'id:', offer.id,
+          'timeToConvert:', timeToConvert,
+          'hours (~', Math.round(timeToConvert / 24), 'days)'
+        );
+      }
+      
+      return timeToConvert;
     });
     
-    // Remove outliers (values more than 2 standard deviations from mean)
-    const mean = conversionTimes.reduce((sum, time) => sum + time, 0) / conversionTimes.length;
-    const variance = conversionTimes.reduce((sum, time) => sum + Math.pow(time - mean, 2), 0) / conversionTimes.length;
-    const stdDev = Math.sqrt(variance);
-    const threshold = stdDev * 2;
+    // Log conversion time statistics
+    if (conversionTimes.length > 0) {
+      const minTime = Math.min(...conversionTimes);
+      const maxTime = Math.max(...conversionTimes);
+      const avgTime = conversionTimes.reduce((sum, time) => sum + time, 0) / conversionTimes.length;
+      console.log('[ConversionVelocity] Conversion time statistics (hours):', {
+        min: minTime,
+        max: maxTime,
+        avg: avgTime,
+        samples: conversionTimes.length
+      });
+    }
     
-    const filteredTimes = conversionTimes.filter(
-      time => Math.abs(time - mean) <= threshold
-    );
+    // Remove outliers (values more than 2 standard deviations from mean)
+    // BUT ONLY IF WE HAVE ENOUGH DATA POINTS
+    let filteredTimes = conversionTimes;
+    if (conversionTimes.length >= 5) {
+      const mean = conversionTimes.reduce((sum, time) => sum + time, 0) / conversionTimes.length;
+      const variance = conversionTimes.reduce((sum, time) => sum + Math.pow(time - mean, 2), 0) / conversionTimes.length;
+      const stdDev = Math.sqrt(variance);
+      const threshold = stdDev * 2;
+      
+      filteredTimes = conversionTimes.filter(
+        time => Math.abs(time - mean) <= threshold
+      );
+      
+      console.log('[ConversionVelocity] Outlier filtering:', {
+        originalCount: conversionTimes.length,
+        filteredCount: filteredTimes.length,
+        mean,
+        stdDev,
+        threshold
+      });
+    } else {
+      console.log('[ConversionVelocity] Not enough data for outlier filtering (need at least 5 points)');
+    }
     
     const avgTimeToConvert = filteredTimes.length > 0 
       ? filteredTimes.reduce((sum, time) => sum + time, 0) / filteredTimes.length
-      : mean; // Fallback to mean if all were outliers
-
+      : conversionTimes.reduce((sum, time) => sum + time, 0) / conversionTimes.length; // Fallback to mean if all were outliers
+    
     // Calculate by channel with minimum sample threshold
     const channelTimes: Map<string, { total: number; count: number; times: number[] }> = new Map();
     convertedOffers.forEach(offer => {
-      const conversionTime = new Date(offer.conversionDate!).getTime();
-      const offerTime = new Date(offer.date).getTime();
-      const timeToConvert = (conversionTime - offerTime) / (1000 * 60 * 60);
+      const conversionDate = new Date(offer.conversionDate!);
+      const offerDate = new Date(offer.date);
       
-      if (!channelTimes.has(offer.channel)) {
-        channelTimes.set(offer.channel, { total: 0, count: 0, times: [] });
+      // Skip invalid dates but log them
+      if (isNaN(conversionDate.getTime()) || isNaN(offerDate.getTime())) {
+        console.warn('[ConversionVelocity] Skipping offer with invalid dates:', offer.id);
+        return;
       }
       
-      const stats = channelTimes.get(offer.channel)!;
-      stats.total += timeToConvert;
-      stats.count++;
-      stats.times.push(timeToConvert);
+      // Use a minimum time for negative values (when conversion date is before offer date)
+      let timeToConvert = (conversionDate.getTime() - offerDate.getTime()) / (1000 * 60 * 60);
+      if (timeToConvert < 0) {
+        console.warn('[ConversionVelocity] Negative conversion time, using minimum:', offer.id);
+        timeToConvert = 0.1; // 6 minutes minimum
+      }
+      
+      // Ensure we have a valid channel
+      const channel = offer.channel || 'Unknown';
+      
+      if (!channelTimes.has(channel)) {
+        channelTimes.set(channel, { total: 0, count: 0, times: [] });
+      }
+      
+      const entry = channelTimes.get(channel)!;
+      entry.total += timeToConvert;
+      entry.count += 1;
+      entry.times.push(timeToConvert);
     });
-
-    // Minimum 2 conversions required for channel metrics to be reliable
-    const reliableChannels = Array.from(channelTimes.entries())
-      .filter(([_, stats]) => stats.count >= 2)
-      .map(([channel, stats]) => {
-        // Remove outliers in each channel
-        const channelMean = stats.total / stats.count;
-        const channelVariance = stats.times.reduce((sum, time) => sum + Math.pow(time - channelMean, 2), 0) / stats.count;
-        const channelStdDev = Math.sqrt(channelVariance);
-        const channelThreshold = channelStdDev * 2;
+    
+    // Find fastest channel with at least 3 conversions
+    const channelAverages = Array.from(channelTimes.entries())
+      .map(([name, { total, count, times }]) => {
+        // Calculate median instead of mean if we have enough data points
+        let avgTime = count > 0 ? total / count : 0;
         
-        const filteredTimes = stats.times.filter(time => Math.abs(time - channelMean) <= channelThreshold);
-        const adjustedAvg = filteredTimes.length > 0 
-          ? filteredTimes.reduce((sum, time) => sum + time, 0) / filteredTimes.length 
-          : channelMean;
+        // For channels with at least 5 data points, use median instead
+        if (times.length >= 5) {
+          times.sort((a, b) => a - b);
+          const midPoint = Math.floor(times.length / 2);
+          if (times.length % 2 === 0) {
+            avgTime = (times[midPoint - 1] + times[midPoint]) / 2;
+          } else {
+            avgTime = times[midPoint];
+          }
+        }
         
-        return {
-          name: channel,
-          time: adjustedAvg,
-          sampleSize: stats.count
-        };
+        return { name, time: avgTime, sampleSize: count };
       })
+      .filter(channel => channel.sampleSize >= 1) // Reduce requirement to just 1 conversion
       .sort((a, b) => a.time - b.time);
-
-    const fastestChannel = reliableChannels.length > 0 
-      ? reliableChannels[0] 
-      : { name: 'Insufficient data', time: 0, sampleSize: 0 };
-
-    // Calculate by hour of day
-    const hourlyTimes = Array.from({ length: 24 }, () => ({ 
-      total: 0, count: 0, conversions: 0, totalOffers: 0, times: [] as number[]
-    }));
     
+    const fastestChannel = channelAverages[0] || { name: 'No data', time: 0, sampleSize: 0 };
+    
+    console.log('[ConversionVelocity] Channel analysis:', channelAverages);
+    
+    // Calculate by hour of day (0-23)
+    const hourlyTimes: { [hour: number]: { total: number; count: number; converted: number; total_offers: number } } = {};
+    
+    // Initialize all hours
+    for (let i = 0; i < 24; i++) {
+      hourlyTimes[i] = { total: 0, count: 0, converted: 0, total_offers: 0 };
+    }
+    
+    // Count all offers by hour for denominator in conversion rate
     offersToAnalyze.forEach(offer => {
-      const hour = new Date(offer.date).getHours();
-      const stats = hourlyTimes[hour];
-      
-      if (offer.converted && offer.conversionDate) {
-        const conversionTime = new Date(offer.conversionDate).getTime();
-        const offerTime = new Date(offer.date).getTime();
-        const timeToConvert = (conversionTime - offerTime) / (1000 * 60 * 60);
-        
-        // Skip negative conversion times (data error)
-        if (timeToConvert >= 0) {
-          stats.total += timeToConvert;
-          stats.count++;
-          stats.conversions++;
-          stats.times.push(timeToConvert);
+      try {
+        const offerTime = new Date(offer.date);
+        if (!isNaN(offerTime.getTime())) {
+          const hour = offerTime.getHours();
+          hourlyTimes[hour].total_offers += 1;
         }
+      } catch (e) {
+        console.error('[ConversionVelocity] Error processing offer for hourly analysis:', e);
       }
-      
-      stats.totalOffers++;
     });
-
-    const hourlyPerformance = hourlyTimes.map((stats, hour) => {
-      // For hours with sufficient data, remove outliers
-      let adjustedAvgTime = 0;
-      if (stats.count >= 2) {
-        const hourMean = stats.total / stats.count;
-        const hourVariance = stats.times.reduce((sum, time) => sum + Math.pow(time - hourMean, 2), 0) / stats.count;
-        const hourStdDev = Math.sqrt(hourVariance);
-        const hourThreshold = hourStdDev * 2;
+    
+    // Process converted offers for numerator
+    convertedOffers.forEach(offer => {
+      try {
+        const offerTime = new Date(offer.date);
+        const conversionTime = new Date(offer.conversionDate!);
         
-        const filteredTimes = stats.times.filter(time => Math.abs(time - hourMean) <= hourThreshold);
-        adjustedAvgTime = filteredTimes.length > 0 
-          ? filteredTimes.reduce((sum, time) => sum + time, 0) / filteredTimes.length 
-          : hourMean;
-      } else if (stats.count === 1) {
-        adjustedAvgTime = stats.total;
+        if (isNaN(offerTime.getTime()) || isNaN(conversionTime.getTime())) {
+          return;
+        }
+        
+        const hour = offerTime.getHours();
+        let timeToConvert = (conversionTime.getTime() - offerTime.getTime()) / (1000 * 60 * 60);
+        
+        // Handle negative times (data errors)
+        if (timeToConvert < 0) {
+          timeToConvert = 0.1;
+        }
+        
+        hourlyTimes[hour].total += timeToConvert;
+        hourlyTimes[hour].count += 1;
+        hourlyTimes[hour].converted += 1;
+      } catch (e) {
+        console.error('[ConversionVelocity] Error in hourly conversion calculation:', e);
       }
-      
-      return {
-        hour,
-        avgTime: adjustedAvgTime,
-        conversionRate: stats.totalOffers > 0 ? (stats.conversions / stats.totalOffers) * 100 : 0,
-        sampleSize: stats.count
-      };
     });
-
-    // Find best time of day (minimum 2 conversions required)
-    const reliableHours = hourlyPerformance
-      .filter(h => h.sampleSize >= 2)
+    
+    // Find best hour with at least 1 conversion
+    const hourlyPerformance = Object.entries(hourlyTimes).map(([hourStr, { total, count, converted, total_offers }]) => {
+      const hour = parseInt(hourStr);
+      const avgTime = count > 0 ? total / count : 0;
+      const conversionRate = total_offers > 0 ? (converted / total_offers) * 100 : 0;
+      return { hour, avgTime, conversionRate, sampleSize: count };
+    });
+    
+    // Sort by conversion time (ascending)
+    const sortedHourlyByTime = [...hourlyPerformance]
+      .filter(h => h.sampleSize > 0)
       .sort((a, b) => a.avgTime - b.avgTime);
-      
-    const bestTimeOfDay = reliableHours.length > 0
-      ? { hour: reliableHours[0].hour, time: reliableHours[0].avgTime, sampleSize: reliableHours[0].sampleSize }
+    
+    const bestTimeOfDay = sortedHourlyByTime.length > 0
+      ? { hour: sortedHourlyByTime[0].hour, time: sortedHourlyByTime[0].avgTime, sampleSize: sortedHourlyByTime[0].sampleSize }
       : { hour: 0, time: 0, sampleSize: 0 };
-
-    // Calculate by day of week
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dailyTimes = new Map(dayNames.map(day => [day, { 
-      total: 0, count: 0, conversions: 0, totalOffers: 0, times: [] as number[]
-    }]));
     
+    console.log('[ConversionVelocity] Hourly performance:', hourlyPerformance);
+    
+    // Calculate by day of week (0 = Sunday, 6 = Saturday)
+    const dailyTimes: { [day: string]: { total: number; count: number; converted: number; total_offers: number } } = {
+      'Sunday': { total: 0, count: 0, converted: 0, total_offers: 0 },
+      'Monday': { total: 0, count: 0, converted: 0, total_offers: 0 },
+      'Tuesday': { total: 0, count: 0, converted: 0, total_offers: 0 },
+      'Wednesday': { total: 0, count: 0, converted: 0, total_offers: 0 },
+      'Thursday': { total: 0, count: 0, converted: 0, total_offers: 0 },
+      'Friday': { total: 0, count: 0, converted: 0, total_offers: 0 },
+      'Saturday': { total: 0, count: 0, converted: 0, total_offers: 0 },
+    };
+    
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    // Count all offers by day for denominator in conversion rate
     offersToAnalyze.forEach(offer => {
-      const dayName = dayNames[new Date(offer.date).getDay()];
-      const stats = dailyTimes.get(dayName)!;
-      
-      if (offer.converted && offer.conversionDate) {
-        const conversionTime = new Date(offer.conversionDate).getTime();
-        const offerTime = new Date(offer.date).getTime();
-        const timeToConvert = (conversionTime - offerTime) / (1000 * 60 * 60);
-        
-        // Skip negative conversion times (data error)
-        if (timeToConvert >= 0) {
-          stats.total += timeToConvert;
-          stats.count++;
-          stats.conversions++;
-          stats.times.push(timeToConvert);
+      try {
+        const offerTime = new Date(offer.date);
+        if (!isNaN(offerTime.getTime())) {
+          const dayIndex = offerTime.getDay();
+          const day = dayNames[dayIndex];
+          dailyTimes[day].total_offers += 1;
         }
+      } catch (e) {
+        console.error('[ConversionVelocity] Error processing offer for daily analysis:', e);
       }
-      
-      stats.totalOffers++;
     });
-
-    const dailyPerformance = Array.from(dailyTimes.entries()).map(([day, stats]) => {
-      // For days with sufficient data, remove outliers
-      let adjustedAvgTime = 0;
-      if (stats.count >= 2) {
-        const dayMean = stats.total / stats.count;
-        const dayVariance = stats.times.reduce((sum, time) => sum + Math.pow(time - dayMean, 2), 0) / stats.count;
-        const dayStdDev = Math.sqrt(dayVariance);
-        const dayThreshold = dayStdDev * 2;
+    
+    // Process converted offers for numerator and conversion time
+    convertedOffers.forEach(offer => {
+      try {
+        const offerTime = new Date(offer.date);
+        const conversionTime = new Date(offer.conversionDate!);
         
-        const filteredTimes = stats.times.filter(time => Math.abs(time - dayMean) <= dayThreshold);
-        adjustedAvgTime = filteredTimes.length > 0 
-          ? filteredTimes.reduce((sum, time) => sum + time, 0) / filteredTimes.length 
-          : dayMean;
-      } else if (stats.count === 1) {
-        adjustedAvgTime = stats.total;
+        if (isNaN(offerTime.getTime()) || isNaN(conversionTime.getTime())) {
+          return;
+        }
+        
+        const dayIndex = offerTime.getDay();
+        const day = dayNames[dayIndex];
+        let timeToConvert = (conversionTime.getTime() - offerTime.getTime()) / (1000 * 60 * 60);
+        
+        // Handle negative times (data errors)
+        if (timeToConvert < 0) {
+          timeToConvert = 0.1;
+        }
+        
+        dailyTimes[day].total += timeToConvert;
+        dailyTimes[day].count += 1;
+        dailyTimes[day].converted += 1;
+      } catch (e) {
+        console.error('[ConversionVelocity] Error in daily conversion calculation:', e);
       }
-      
-      return {
-        day,
-        avgTime: adjustedAvgTime,
-        conversionRate: stats.totalOffers > 0 ? (stats.conversions / stats.totalOffers) * 100 : 0,
-        sampleSize: stats.count
-      };
     });
-
-    // Find best day of week (minimum 2 conversions required)
-    const reliableDays = dailyPerformance
-      .filter(d => d.sampleSize >= 2)
+    
+    // Map to array for easier processing
+    const dailyPerformance = Object.entries(dailyTimes).map(([day, { total, count, converted, total_offers }]) => {
+      const avgTime = count > 0 ? total / count : 0;
+      const conversionRate = total_offers > 0 ? (converted / total_offers) * 100 : 0;
+      return { day, avgTime, conversionRate, sampleSize: count };
+    });
+    
+    // Find best day
+    const sortedDailyByTime = [...dailyPerformance]
+      .filter(d => d.sampleSize > 0)
       .sort((a, b) => a.avgTime - b.avgTime);
-      
-    const bestDayOfWeek = reliableDays.length > 0
-      ? { day: reliableDays[0].day, time: reliableDays[0].avgTime, sampleSize: reliableDays[0].sampleSize }
-      : { day: 'Insufficient data', time: 0, sampleSize: 0 };
+    
+    const bestDayOfWeek = sortedDailyByTime.length > 0
+      ? { day: sortedDailyByTime[0].day, time: sortedDailyByTime[0].avgTime, sampleSize: sortedDailyByTime[0].sampleSize }
+      : { day: 'No data', time: 0, sampleSize: 0 };
+    
+    console.log('[ConversionVelocity] Daily performance:', dailyPerformance);
 
     return {
       avgTimeToConvert,

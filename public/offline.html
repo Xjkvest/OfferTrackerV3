@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Offer Tracker</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      color: #334155;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      max-width: 500px;
+      padding: 40px;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 16px;
+      color: #0f172a;
+    }
+    p {
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 24px;
+      color: #3b82f6;
+    }
+    .button {
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .button:hover {
+      background-color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    </svg>
+    <h1>You're offline</h1>
+    <p>It looks like you've lost your internet connection. The Offer Tracker app works offline, but this particular page wasn't cached for offline use.</p>
+    <a href="/" class="button">Go to Homepage</a>
+  </div>
+  <script>
+    // Check if the user comes back online and reload if so
+    window.addEventListener('online', () => {
+      window.location.reload();
+    });
+    
+    // When user clicks the homepage button, attempt to navigate there
+    document.querySelector('.button').addEventListener('click', (e) => {
+      if (navigator.onLine) {
+        return; // Normal navigation will happen
+      }
+      
+      e.preventDefault();
+      // Check if homepage is in cache
+      caches.match('/').then(response => {
+        if (response) {
+          window.location.href = '/';
+        } else {
+          alert('Homepage is not available offline. Please reconnect to the internet.');
+        }
+      });
+    });
+  </script>
+</body>
+</html> 

@@ -1,28 +1,164 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Offer } from '@/context/OfferContext';
 import { format } from 'date-fns';
+
+export const exportToExcel = async (offerData: Offer[], filename: string) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Offers');
+
+  // Define columns
+  worksheet.columns = [
+    { header: 'Case Number', key: 'caseNumber', width: 15 },
+    { header: 'Channel', key: 'channel', width: 15 },
+    { header: 'Offer Type', key: 'offerType', width: 15 },
+    { header: 'Date', key: 'date', width: 15 },
+    { header: 'CSAT', key: 'csat', width: 10 },
+    { header: 'CSAT Comment', key: 'csatComment', width: 30 },
+    { header: 'Converted', key: 'converted', width: 10 },
+    { header: 'Conversion Date', key: 'conversionDate', width: 15 },
+    { header: 'Followup Date', key: 'followupDate', width: 15 },
+    { header: 'Notes', key: 'notes', width: 40 }
+  ];
+
+  // Add data
+  offerData.forEach(offer => {
+    worksheet.addRow({
+      caseNumber: offer.caseNumber,
+      channel: offer.channel,
+      offerType: offer.offerType,
+      date: offer.date,
+      csat: offer.csat,
+      csatComment: offer.csatComment,
+      converted: offer.converted ? 'Yes' : 'No',
+      conversionDate: offer.conversionDate,
+      followupDate: offer.followupDate,
+      notes: offer.notes
+    });
+  });
+
+  // Style the header row
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' }
+  };
+
+  // Generate buffer
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, `${filename}.xlsx`);
+};
+
+export const exportToCSV = async (offerData: Offer[], filename: string) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Offers');
+
+  // Define columns
+  worksheet.columns = [
+    { header: 'Case Number', key: 'caseNumber' },
+    { header: 'Channel', key: 'channel' },
+    { header: 'Offer Type', key: 'offerType' },
+    { header: 'Date', key: 'date' },
+    { header: 'CSAT', key: 'csat' },
+    { header: 'CSAT Comment', key: 'csatComment' },
+    { header: 'Converted', key: 'converted' },
+    { header: 'Conversion Date', key: 'conversionDate' },
+    { header: 'Followup Date', key: 'followupDate' },
+    { header: 'Notes', key: 'notes' }
+  ];
+
+  // Add data
+  offerData.forEach(offer => {
+    worksheet.addRow({
+      caseNumber: offer.caseNumber,
+      channel: offer.channel,
+      offerType: offer.offerType,
+      date: offer.date,
+      csat: offer.csat,
+      csatComment: offer.csatComment,
+      converted: offer.converted ? 'Yes' : 'No',
+      conversionDate: offer.conversionDate,
+      followupDate: offer.followupDate,
+      notes: offer.notes
+    });
+  });
+
+  // Generate CSV
+  const rows = worksheet.getRows(1, worksheet.rowCount) || [];
+  const csvContent = rows.map(row => {
+    const values = Object.values(row.values || {}).slice(1);
+    return values.map(cell => {
+      const value = String(cell || '').replace(/"/g, '""');
+      return value.includes(',') ? `"${value}"` : value;
+    }).join(',');
+  }).join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  saveAs(blob, `${filename}.csv`);
+};
+
+export const exportToJSON = async (offerData: Offer[], filename: string) => {
+  const jsonContent = JSON.stringify(offerData, null, 2);
+  const blob = new Blob([jsonContent], { type: 'application/json' });
+  saveAs(blob, `${filename}.json`);
+};
 
 export function exportToCsv(offers: Offer[], dateRangeText = '') {
   if (offers.length === 0) {
     console.error('No offers to export');
     return;
   }
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Offers');
   
-  // Prepare the data for export
-  const offerData = prepareOfferData(offers);
-  
-  // Convert to CSV
-  const worksheet = XLSX.utils.json_to_sheet(offerData);
-  const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
-  
-  // Export the file
+  // Define columns
+  worksheet.columns = [
+    { header: 'Case Number', key: 'caseNumber' },
+    { header: 'Channel', key: 'channel' },
+    { header: 'Offer Type', key: 'offerType' },
+    { header: 'Date', key: 'date' },
+    { header: 'CSAT', key: 'csat' },
+    { header: 'CSAT Comment', key: 'csatComment' },
+    { header: 'Converted', key: 'converted' },
+    { header: 'Conversion Date', key: 'conversionDate' },
+    { header: 'Followup Date', key: 'followupDate' },
+    { header: 'Notes', key: 'notes' }
+  ];
+
+  // Add data
+  offers.forEach(offer => {
+    worksheet.addRow({
+      caseNumber: offer.caseNumber,
+      channel: offer.channel,
+      offerType: offer.offerType,
+      date: offer.date,
+      csat: offer.csat,
+      csatComment: offer.csatComment,
+      converted: offer.converted ? 'Yes' : 'No',
+      conversionDate: offer.conversionDate,
+      followupDate: offer.followupDate,
+      notes: offer.notes
+    });
+  });
+
+  // Generate CSV
+  const rows = worksheet.getRows(1, worksheet.rowCount) || [];
+  const csvContent = rows.map(row => {
+    const values = Object.values(row.values || {}).slice(1);
+    return values.map(cell => {
+      const value = String(cell || '').replace(/"/g, '""');
+      return value.includes(',') ? `"${value}"` : value;
+    }).join(',');
+  }).join('\n');
+
   const fileName = dateRangeText 
     ? `offer-data-${dateRangeText}.csv`
     : `offer-data-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    
-  const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
   
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   saveAs(blob, fileName);
   
   return fileName;
@@ -111,16 +247,35 @@ export const exportOffersToCSV = (offers: Offer[], dateRangeText = '') => {
   // Use the enhanced prepareOfferData function
   const offerData = prepareOfferData(offers);
   
-  // Convert to CSV
-  const worksheet = XLSX.utils.json_to_sheet(offerData);
-  const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
+  // Create a new workbook and worksheet
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Offers');
+  
+  // Add headers
+  const headers = Object.keys(offerData[0]);
+  worksheet.addRow(headers);
+  
+  // Add data
+  offerData.forEach(offer => {
+    worksheet.addRow(offer);
+  });
+  
+  // Generate CSV
+  const rows = worksheet.getRows(1, worksheet.rowCount) || [];
+  const csvContent = rows.map(row => {
+    const values = Object.values(row.values || {}).slice(1);
+    return values.map(cell => {
+      const value = String(cell || '').replace(/"/g, '""');
+      return value.includes(',') ? `"${value}"` : value;
+    }).join(',');
+  }).join('\n');
   
   // Export the file
   const fileName = dateRangeText 
     ? `offer-data-${dateRangeText}.csv`
     : `offer-data-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     
-  const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   
   saveAs(blob, fileName);
   
@@ -129,74 +284,72 @@ export const exportOffersToCSV = (offers: Offer[], dateRangeText = '') => {
 
 // Export a basic template for importing offers
 export function exportImportTemplate() {
-  // Create a sample offer with only required fields
-  const minimalOffer: Partial<Offer> = {
-    id: "sample-id-1",
-    date: new Date().toISOString(),
-    caseNumber: "",
-    channel: "Chat",
-    offerType: "Website Plan",
-    notes: "",
-  };
-  
-  // Create a sample offer with all fields
-  const completeOffer: Offer = {
-    id: "sample-id-2",
-    date: new Date().toISOString(),
-    caseNumber: "12345",
-    channel: "Email",
-    offerType: "Google Workspace",
-    notes: "Sample notes about the offer",
-    csat: "positive",
-    csatComment: "Customer was very happy with the service",
-    converted: true,
-    conversionDate: new Date().toISOString(),
-    followupDate: new Date(Date.now() + 86400000).toISOString(),
-    followups: [
-      {
-        id: "followup-1",
-        date: new Date(Date.now() + 86400000).toISOString(),
-        notes: "Follow up with client about additional services",
-        completed: false
-      }
-    ]
-  };
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Template');
 
-  // Create a minimal CSV using only the necessary import fields
-  const importData = [
-    {
-      'date': format(new Date(minimalOffer.date!), 'yyyy-MM-dd'),
-      'offerType': minimalOffer.offerType,
-      'channel': minimalOffer.channel,
-      'notes': minimalOffer.notes,
-      'caseNumber': minimalOffer.caseNumber,
-      'converted': '',
-      'csat': '',
-      'csatComment': '',
-      'followupDate': ''
-    },
-    {
-      'date': format(new Date(completeOffer.date), 'yyyy-MM-dd'),
-      'offerType': completeOffer.offerType,
-      'channel': completeOffer.channel,
-      'notes': completeOffer.notes,
-      'caseNumber': completeOffer.caseNumber,
-      'converted': completeOffer.converted ? 'true' : 'false',
-      'csat': completeOffer.csat,
-      'csatComment': completeOffer.csatComment,
-      'followupDate': completeOffer.followupDate ? format(new Date(completeOffer.followupDate), 'yyyy-MM-dd') : ''
-    }
+  // Define columns with headers
+  const headers = [
+    'Date',
+    'Offer Type',
+    'Channel',
+    'Case Number',
+    'Notes',
+    'Converted',
+    'CSAT',
+    'CSAT Comment',
+    'Followup Date'
   ];
-  
+
+  // Add headers
+  worksheet.addRow(headers);
+
+  // Add example data
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Add a minimal example
+  worksheet.addRow([
+    format(today, 'yyyy-MM-dd'),
+    'Website Plan',
+    'Chat',
+    '',
+    '',
+    '',
+    '',
+    '',
+    ''
+  ]);
+
+  // Add a complete example
+  worksheet.addRow([
+    format(today, 'yyyy-MM-dd'),
+    'Google Workspace',
+    'Email',
+    '12345',
+    'Sample notes about the offer',
+    'true',
+    'positive',
+    'Customer was very happy with the service',
+    format(tomorrow, 'yyyy-MM-dd')
+  ]);
+
   // Convert to CSV
-  const worksheet = XLSX.utils.json_to_sheet(importData);
-  const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
-  
+  const rows = worksheet.getSheetValues();
+  const csvContent = rows
+    .slice(1) // Skip the first empty row that getSheetValues returns
+    .map(row => {
+      return (row as any[])
+        .slice(1) // Skip the first empty column that getSheetValues returns
+        .map(cell => {
+          const value = cell?.toString() || '';
+          return value.includes(',') ? `"${value}"` : value;
+        })
+        .join(',');
+    })
+    .join('\n');
+
   // Export the file
-  const fileName = `offer-import-template.csv`;
-  const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
-  
-  saveAs(blob, fileName);
-  
-  return fileName;
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  saveAs(blob, 'offer-import-template.csv');
 }
