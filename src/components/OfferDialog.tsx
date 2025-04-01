@@ -126,7 +126,7 @@ export function OfferDialog({ open, onOpenChange, offerId, onSetupComplete }: Of
   const getDialogTitle = () => {
     if (showSetup) return "Welcome to Offer Tracker";
     if (selectedOffer) return "Offer Details";
-    return "Quick Log Offer";
+    return "";
   };
 
   // Adjust dialog max width based on content
@@ -139,31 +139,31 @@ export function OfferDialog({ open, onOpenChange, offerId, onSetupComplete }: Of
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className={getDialogClass()}>
-        <DialogHeader>
-          <DialogTitle>{getDialogTitle()}</DialogTitle>
-          {showSetup ? (
-            <>
-              <DialogDescription>
-                Set up your profile and preferences to get started.
-              </DialogDescription>
-              <FirstTimeSetup onComplete={handleSetupComplete} />
-            </>
-          ) : selectedOffer ? (
-            <>
-              <DialogDescription>
-                View and manage details for this offer
-              </DialogDescription>
-              <OfferDetails offer={selectedOffer} onClose={handleClose} />
-            </>
-          ) : (
-            <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 p-5 rounded-lg">
-              <DialogDescription className="text-sm text-muted-foreground">
-                Quickly add a new offer to your tracker.
-              </DialogDescription>
-              <OfferForm onSuccess={handleClose} className="pt-2" />
-            </div>
-          )}
-        </DialogHeader>
+        {getDialogTitle() ? (
+          <DialogHeader>
+            <DialogTitle>{getDialogTitle()}</DialogTitle>
+            {showSetup ? (
+              <>
+                <DialogDescription>
+                  Set up your profile and preferences to get started.
+                </DialogDescription>
+                <FirstTimeSetup onComplete={handleSetupComplete} />
+              </>
+            ) : selectedOffer && (
+              <>
+                <DialogDescription>
+                  View and manage details for this offer
+                </DialogDescription>
+                <OfferDetails offer={selectedOffer} onClose={handleClose} />
+              </>
+            )}
+          </DialogHeader>
+        ) : (
+          // This is the Quick Log Offer case with no title
+          <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 rounded-lg sm:rounded-lg overflow-hidden">
+            <OfferForm onSuccess={handleClose} className="p-5" />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
