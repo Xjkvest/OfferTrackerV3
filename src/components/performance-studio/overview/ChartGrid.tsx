@@ -166,7 +166,10 @@ export const ChartGrid: React.FC<ChartGridProps> = ({
           ]}
         >
           <RechartsDonutChart
-            data={channelData}
+            data={finalChannelData.map(item => ({
+              ...item,
+              color: item.color || channelColors[finalChannelData.indexOf(item) % channelColors.length]
+            }))}
             colors={channelColors}
             height={180}
             innerRadius={45}
@@ -198,7 +201,10 @@ export const ChartGrid: React.FC<ChartGridProps> = ({
           ]}
         >
           <RechartsDonutChart
-            data={offerTypeData}
+            data={finalOfferTypeData.map(item => ({
+              ...item,
+              color: item.color || offerTypeColors[finalOfferTypeData.indexOf(item) % offerTypeColors.length]
+            }))}
             colors={offerTypeColors}
             height={180}
             innerRadius={45}
@@ -207,30 +213,42 @@ export const ChartGrid: React.FC<ChartGridProps> = ({
             theme={theme}
           />
         </ModernAnalyticsCard>
-
-        {/* Customer Satisfaction Card */}
+      </div>
+      
+      {/* Second Row */}
+      <div className={cn(
+        "grid gap-4",
+        isMobile ? "grid-cols-1" : "grid-cols-2"
+      )}>
+        {/* CSAT Rating Card */}
         <ModernAnalyticsCard
-          title="Customer Satisfaction"
-          value={`${csatTotal > 0 ? (csatTotal / csatData.length).toFixed(2) : '0.00'}%`}
+          title="CSAT Distribution"
+          value={formatTotal(csatTotal)}
           trend={{ value: 5, isPositive: true }}
           icon={<Smile className="h-5 w-5" />}
           gradient="from-amber-500/10 to-amber-500/5"
-          badge={{ text: "Top: " + getTopItem(finalCsatData).name }}
           insights={[
             {
-              title: "Top Rating",
-              value: getTopItem(finalCsatData).name,
-              description: `Received ${formatTotal(getTopItem(finalCsatData).value)} times`
+              title: "Positive Ratings",
+              value: formatTotal(
+                finalCsatData
+                  .filter(item => item.label === 'Positive' || item.label === 'positive' || item.name === 'Positive' || item.name === 'positive')
+                  .reduce((sum, item) => sum + (item.value || 0), 0)
+              ),
+              description: "Customers satisfied with offers"
             },
             {
-              title: "Rating Distribution",
-              value: `${csatData.length} levels`,
-              description: "Across different satisfaction levels"
+              title: "Rating Categories",
+              value: `${finalCsatData.length}`,
+              description: "Different satisfaction levels"
             }
           ]}
         >
           <RechartsDonutChart
-            data={finalCsatData}
+            data={finalCsatData.map(item => ({
+              ...item,
+              color: item.color || csatColors[finalCsatData.indexOf(item) % csatColors.length]
+            }))}
             colors={csatColors}
             height={180}
             innerRadius={45}
@@ -240,33 +258,36 @@ export const ChartGrid: React.FC<ChartGridProps> = ({
           />
         </ModernAnalyticsCard>
 
-        {/* Conversion Rate Card */}
+        {/* Conversion Card */}
         <ModernAnalyticsCard
-          title="Conversion Rate"
-          value={`${conversionRate}%`}
+          title="Conversion Status"
+          value={conversionRate + '%'}
           trend={{ value: 3, isPositive: true }}
-          icon={<LineChart className="h-5 w-5" />}
+          icon={<TrendingUp className="h-5 w-5" />}
           gradient="from-green-500/10 to-green-500/5"
-          badge={{ text: "Top: " + getTopItem(finalConversionData).name }}
           insights={[
             {
-              title: "Top Rate",
-              value: getTopItem(finalConversionData).name,
-              description: `Achieved ${formatTotal(getTopItem(finalConversionData).value)} times`
+              title: "Total Converted",
+              value: formatTotal(convertedCount),
+              description: "Offers that resulted in conversions"
             },
             {
-              title: "Rate Distribution",
-              value: `${conversionData.length} levels`,
-              description: "Across different conversion levels"
+              title: "Conversion Pipeline",
+              value: `${finalConversionData.length} statuses`,
+              description: "Offer conversion pipeline"
             }
           ]}
         >
           <RechartsDonutChart
-            data={finalConversionData}
+            data={finalConversionData.map(item => ({
+              ...item,
+              color: item.color || conversionColors[finalConversionData.indexOf(item) % conversionColors.length]
+            }))}
             colors={conversionColors}
             height={180}
             innerRadius={45}
             outerRadius={70}
+            showTotal={true}
             legendPosition={{ top: 0, left: 0, width: "25%" }}
             theme={theme}
           />
