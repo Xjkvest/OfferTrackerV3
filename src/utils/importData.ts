@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { Offer } from '@/context/OfferContext';
 import { v4 as uuidv4 } from 'uuid';
+import { parse as parseDate, isValid } from 'date-fns';
 
 // Column mapping for import
 const COLUMN_MAP = {
@@ -22,6 +23,41 @@ const findColumnIndex = (headers: string[], field: string): number => {
     possibleNames.includes(h.toLowerCase().trim())
   );
   return headerIndex !== -1 ? headerIndex : -1;
+};
+
+// Helper function to validate and parse date strings
+const validateAndParseDate = (dateStr: string, rowNum: number, fieldName: string): string => {
+  if (!dateStr || dateStr.trim() === '') {
+    throw new Error(`Missing required ${fieldName} at row ${rowNum}`);
+  }
+  
+  // Try different date formats
+  let date: Date | null = null;
+  
+  // Try ISO format first
+  date = new Date(dateStr);
+  
+  // If not valid, try other common formats
+  if (!isValid(date)) {
+    // Try YYYY-MM-DD
+    date = parseDate(dateStr, 'yyyy-MM-dd', new Date());
+    
+    // Try MM/DD/YYYY
+    if (!isValid(date)) {
+      date = parseDate(dateStr, 'MM/dd/yyyy', new Date());
+    }
+    
+    // Try DD/MM/YYYY
+    if (!isValid(date)) {
+      date = parseDate(dateStr, 'dd/MM/yyyy', new Date());
+    }
+  }
+  
+  if (!isValid(date)) {
+    throw new Error(`Invalid ${fieldName} format at row ${rowNum}: '${dateStr}'`);
+  }
+  
+  return date.toISOString();
 };
 
 export const importFromExcel = async (file: File): Promise<Offer[]> => {
@@ -70,21 +106,41 @@ export const importFromExcel = async (file: File): Promise<Offer[]> => {
           if (index === 1) return; // Skip header row
           rowNumber = index;
 
+          const dateValue = String(row.getCell(columnIndices.date + 1).value || '');
+          let date: string;
+          
+          try {
+            date = validateAndParseDate(dateValue, rowNumber, "Date");
+          } catch (error) {
+            throw error;
+          }
+
           const offer: Offer = {
             id: uuidv4(),
-            date: String(row.getCell(columnIndices.date + 1).value || new Date().toISOString()),
+            date,
             offerType: String(row.getCell(columnIndices.offerType + 1).value || ''),
             channel: String(row.getCell(columnIndices.channel + 1).value || ''),
             caseNumber: columnIndices.caseNumber !== -1 ? String(row.getCell(columnIndices.caseNumber + 1).value || '') : '',
             notes: columnIndices.notes !== -1 ? String(row.getCell(columnIndices.notes + 1).value || '') : '',
-            converted: columnIndices.converted !== -1 ? String(row.getCell(columnIndices.converted + 1).value).toLowerCase() === 'true' : undefined,
+            converted: columnIndices.converted !== -1 ? String(row.getCell(columnIndices.converted + 1).value || '').toLowerCase() === 'true' : undefined,
             csat: columnIndices.csat !== -1 ? row.getCell(columnIndices.csat + 1).value as 'positive' | 'neutral' | 'negative' | undefined : undefined,
             csatComment: columnIndices.csatComment !== -1 ? String(row.getCell(columnIndices.csatComment + 1).value || '') : '',
-            followupDate: columnIndices.followupDate !== -1 ? String(row.getCell(columnIndices.followupDate + 1).value || '') : undefined
+            followupDate: undefined
           };
 
+          // Process follow-up date if provided
+          if (columnIndices.followupDate !== -1) {
+            const followupValue = String(row.getCell(columnIndices.followupDate + 1).value || '');
+            if (followupValue && followupValue.trim() !== '') {
+              try {
+                offer.followupDate = validateAndParseDate(followupValue, rowNumber, "Follow-up Date");
+              } catch (error) {
+                console.warn(`Invalid follow-up date at row ${rowNumber}, skipping: ${error}`);
+              }
+            }
+          }
+
           // Validate required fields
-          if (!offer.date) throw new Error(`Missing required field "Date" at row ${rowNumber}`);
           if (!offer.offerType) throw new Error(`Missing required field "Offer Type" at row ${rowNumber}`);
           if (!offer.channel) throw new Error(`Missing required field "Channel" at row ${rowNumber}`);
 
@@ -112,18 +168,16 @@ export const importFromCSV = async (file: File): Promise<Offer[]> => {
     reader.onload = async (e) => {
       try {
         const text = e.target?.result as string;
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Imported Data');
         
         // Parse CSV content and get headers
-        const rows = text.split('\n').map(row => 
+        const rows = text.split(/\r?\n/).map(row => 
           row.split(',').map(cell => {
             const value = cell.trim();
             return value.startsWith('"') && value.endsWith('"') 
               ? value.slice(1, -1).replace(/""/g, '"')
               : value;
           })
-        );
+        ).filter(row => row.length > 0 && row.some(cell => cell.trim() !== ''));
 
         if (rows.length < 2) {
           throw new Error('File must contain at least a header row and one data row');
@@ -155,26 +209,55 @@ export const importFromCSV = async (file: File): Promise<Offer[]> => {
         for (let i = 1; i < rows.length; i++) {
           const row = rows[i];
           if (row.length === 0 || row.every(cell => !cell)) continue; // Skip empty rows
+          
+          try {
+            // Process and validate the date
+            const dateValue = row[columnIndices.date];
+            let date: string;
+            
+            try {
+              date = validateAndParseDate(dateValue, i + 1, "Date");
+            } catch (error) {
+              throw error;
+            }
+            
+            const offer: Offer = {
+              id: uuidv4(),
+              date,
+              offerType: row[columnIndices.offerType] || '',
+              channel: row[columnIndices.channel] || '',
+              caseNumber: columnIndices.caseNumber !== -1 ? row[columnIndices.caseNumber] || '' : '',
+              notes: columnIndices.notes !== -1 ? row[columnIndices.notes] || '' : '',
+              converted: columnIndices.converted !== -1 ? row[columnIndices.converted]?.toLowerCase() === 'true' : undefined,
+              csat: columnIndices.csat !== -1 ? 
+                (row[columnIndices.csat] ? row[columnIndices.csat] as 'positive' | 'neutral' | 'negative' : undefined) : 
+                undefined,
+              csatComment: columnIndices.csatComment !== -1 ? row[columnIndices.csatComment] || '' : '',
+              followupDate: undefined
+            };
 
-          const offer: Offer = {
-            id: uuidv4(),
-            date: row[columnIndices.date] || new Date().toISOString(),
-            offerType: row[columnIndices.offerType] || '',
-            channel: row[columnIndices.channel] || '',
-            caseNumber: columnIndices.caseNumber !== -1 ? row[columnIndices.caseNumber] || '' : '',
-            notes: columnIndices.notes !== -1 ? row[columnIndices.notes] || '' : '',
-            converted: columnIndices.converted !== -1 ? row[columnIndices.converted].toLowerCase() === 'true' : undefined,
-            csat: columnIndices.csat !== -1 ? row[columnIndices.csat] as 'positive' | 'neutral' | 'negative' | undefined : undefined,
-            csatComment: columnIndices.csatComment !== -1 ? row[columnIndices.csatComment] || '' : '',
-            followupDate: columnIndices.followupDate !== -1 ? row[columnIndices.followupDate] || undefined : undefined
-          };
+            // Process follow-up date if provided
+            if (columnIndices.followupDate !== -1 && row[columnIndices.followupDate]) {
+              try {
+                offer.followupDate = validateAndParseDate(row[columnIndices.followupDate], i + 1, "Follow-up Date");
+              } catch (error) {
+                console.warn(`Invalid follow-up date at row ${i + 1}, skipping: ${error}`);
+              }
+            }
 
-          // Validate required fields
-          if (!offer.date) throw new Error(`Missing required field "Date" at row ${i + 1}`);
-          if (!offer.offerType) throw new Error(`Missing required field "Offer Type" at row ${i + 1}`);
-          if (!offer.channel) throw new Error(`Missing required field "Channel" at row ${i + 1}`);
+            // Validate required fields
+            if (!offer.offerType) throw new Error(`Missing required field "Offer Type" at row ${i + 1}`);
+            if (!offer.channel) throw new Error(`Missing required field "Channel" at row ${i + 1}`);
 
-          offers.push(offer);
+            offers.push(offer);
+          } catch (error) {
+            // Skip individual problematic rows with warning instead of failing the entire import
+            console.warn(`Skipping row ${i + 1} due to error: ${error}`);
+          }
+        }
+
+        if (offers.length === 0) {
+          throw new Error('No valid offers found in the CSV file');
         }
 
         resolve(offers);

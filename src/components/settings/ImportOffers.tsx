@@ -205,8 +205,30 @@ export const ImportOffers: React.FC<ImportOffersProps> = ({ onImport }) => {
     let successCount = 0;
     const importErrors: string[] = [];
 
-    for (const offer of validOffers) {
+    // Extra validation for chart-breaking values like missing colors
+    const sanitizedOffers = validOffers.map(offer => {
+      // Ensure CSAT values are valid
+      if (offer.csat && !['positive', 'neutral', 'negative'].includes(offer.csat as string)) {
+        console.warn(`Invalid CSAT value: "${offer.csat}" - defaulting to undefined`);
+        offer.csat = undefined;
+      }
+      
+      // Sanitize offer type and channel to prevent rendering issues
+      if (offer.offerType) {
+        offer.offerType = offer.offerType.trim();
+      }
+      
+      if (offer.channel) {
+        offer.channel = offer.channel.trim();
+      }
+      
+      return offer;
+    });
+
+    // Process each offer
+    for (const offer of sanitizedOffers) {
       try {
+        // Add offer with current date (as per default behavior)
         await addOffer({
           caseNumber: offer.caseNumber || "",
           channel: offer.channel,
@@ -217,6 +239,17 @@ export const ImportOffers: React.FC<ImportOffersProps> = ({ onImport }) => {
           csatComment: offer.csatComment || "",
           followupDate: offer.followupDate ? new Date(offer.followupDate).toISOString() : undefined,
         });
+        
+        // Find the offer we just added (should be the most recent one)
+        const addedOffer = offers[0];
+        
+        // Update it with the correct date from the import
+        if (addedOffer) {
+          await updateOffer(addedOffer.id, {
+            date: offer.date
+          });
+        }
+        
         successCount++;
       } catch (error) {
         console.error("Error importing offer:", error, offer);
@@ -240,6 +273,9 @@ export const ImportOffers: React.FC<ImportOffersProps> = ({ onImport }) => {
         description: `✅ ${successCount} offers imported successfully`,
       });
     }
+
+    // Notify parent component that offers were imported
+    onImport(sanitizedOffers);
   };
 
   const handleSkipDuplicates = async () => {
