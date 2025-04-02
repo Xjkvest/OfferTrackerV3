@@ -26,7 +26,7 @@ interface LineChartComponentProps {
 }
 
 // Custom tooltip component for a more modern look
-const CustomTooltip = ({ active, payload, label, theme, xDataKey }: any) => {
+const CustomTooltip = ({ active, payload, label, theme, xDataKey, colors }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className={`p-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-lg`}>
@@ -36,7 +36,7 @@ const CustomTooltip = ({ active, payload, label, theme, xDataKey }: any) => {
         <div className="space-y-1">
           {payload.map((entry: any, index: number) => (
             <div key={`tooltip-${index}`} className="flex items-center">
-              <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: entry.color }} />
+              <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: entry?.color || colors?.[index] || '#888' }} />
               <span className={`text-xs font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                 {entry.name}: {entry.value}
               </span>
@@ -236,7 +236,7 @@ export const LineChartComponent: React.FC<LineChartComponentProps> = ({
           
           {showTooltip && (
             <Tooltip
-              content={<CustomTooltip theme={theme} xDataKey={xAxisDataKey} />}
+              content={<CustomTooltip theme={theme} xDataKey={xAxisDataKey} colors={colors} />}
               cursor={{ stroke: theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)", strokeWidth: 1 }}
             />
           )}
