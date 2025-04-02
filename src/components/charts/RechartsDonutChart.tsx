@@ -75,11 +75,11 @@ const CustomTooltip = ({ active, payload, theme }: any) => {
         <div className="flex items-center gap-1">
           <div 
             className="w-3 h-3 rounded-full" 
-            style={{ backgroundColor: data.fill }}
+            style={{ backgroundColor: data?.fill || data?.color || '#888' }}
           />
           <p className="text-sm">
             <span className="font-semibold">{data.value}</span>
-            <span className="text-xs opacity-75 ml-1">({(data.payload.percent * 100).toFixed(1)}%)</span>
+            <span className="text-xs opacity-75 ml-1">({(data.payload?.percent ? data.payload.percent * 100 : 0).toFixed(1)}%)</span>
           </p>
         </div>
       </div>

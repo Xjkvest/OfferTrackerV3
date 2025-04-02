@@ -80,7 +80,7 @@ const CustomTooltip = ({ active, payload, label, theme }: any) => {
             <div key={index} className="flex items-center gap-2">
               <div
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: entry.color }}
+                style={{ backgroundColor: entry?.color || '#888' }}
               />
               <span className={cn(
                 "text-sm",
