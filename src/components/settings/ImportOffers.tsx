@@ -228,7 +228,7 @@ export const ImportOffers: React.FC<ImportOffersProps> = ({ onImport }) => {
     // Process each offer
     for (const offer of sanitizedOffers) {
       try {
-        // Add offer with current date (as per default behavior)
+        // Add offer with the original date from CSV using dateOverride
         await addOffer({
           caseNumber: offer.caseNumber || "",
           channel: offer.channel,
@@ -238,17 +238,8 @@ export const ImportOffers: React.FC<ImportOffersProps> = ({ onImport }) => {
           csat: offer.csat || undefined,
           csatComment: offer.csatComment || "",
           followupDate: offer.followupDate ? new Date(offer.followupDate).toISOString() : undefined,
+          dateOverride: offer.date, // Pass the original date directly
         });
-        
-        // Find the offer we just added (should be the most recent one)
-        const addedOffer = offers[0];
-        
-        // Update it with the correct date from the import
-        if (addedOffer) {
-          await updateOffer(addedOffer.id, {
-            date: offer.date
-          });
-        }
         
         successCount++;
       } catch (error) {
@@ -307,7 +298,7 @@ export const ImportOffers: React.FC<ImportOffersProps> = ({ onImport }) => {
     }
     
     // Then import the non-duplicate entries
-    await importValidOffers([...csvData, ...duplicates]);
+    await importValidOffers([...csvData]);
   };
 
   return (

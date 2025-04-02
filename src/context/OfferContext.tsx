@@ -36,7 +36,7 @@ type NewOffer = Omit<Offer, 'id' | 'date'>;
 
 interface OfferContextType {
   offers: Offer[];
-  addOffer: (offer: NewOffer) => Promise<void>;
+  addOffer: (offer: NewOffer & { dateOverride?: string }) => Promise<void>;
   updateOffer: (id: string, updates: Partial<Offer>) => Promise<void>;
   deleteOffer: (id: string) => Promise<void>;
   todaysOffers: Offer[];
@@ -209,11 +209,11 @@ export const OfferProvider: React.FC<OfferProviderProps> = ({ children }) => {
   
   const streak = streakInfo.current;
 
-  const addOffer = async (offer: NewOffer) => {
+  const addOffer = async (offer: NewOffer & { dateOverride?: string }) => {
     const newOffer: Offer = {
       ...offer,
       id: crypto.randomUUID(),
-      date: new Date().toISOString(),
+      date: offer.dateOverride || new Date().toISOString(),
     };
     
     setOffers(prev => [newOffer, ...prev]);
