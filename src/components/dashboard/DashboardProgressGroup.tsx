@@ -25,9 +25,16 @@ interface DashboardProgressGroupProps {
   onNewOfferSuccess: () => void;
   onClose?: () => void;
   streak?: number;
+  showCharts?: boolean;
 }
 
-export function DashboardProgressGroup({ onNewOfferClick, onNewOfferSuccess, onClose, streak: customStreak }: DashboardProgressGroupProps) {
+export function DashboardProgressGroup({ 
+  onNewOfferClick, 
+  onNewOfferSuccess, 
+  onClose, 
+  streak: customStreak,
+  showCharts = true
+}: DashboardProgressGroupProps) {
   const { dailyGoal, dashboardElements, settings = {} } = useUser();
   const { todaysOffers, offers, streak = customStreak || 0 } = useOffers();
   const { theme } = useTheme();
@@ -203,19 +210,27 @@ export function DashboardProgressGroup({ onNewOfferClick, onNewOfferSuccess, onC
               <div className="mb-6 h-44 px-0">
                 <h3 className="text-sm font-medium text-muted-foreground mb-3">Monthly Overview</h3>
                 <div style={{ height: "220px" }} className="w-full">
-                  <LineChartComponent
-                    data={chartData}
-                    height={220}
-                    theme={theme === 'dark' ? 'dark' : 'light'}
-                    showLegend={true}
-                    xAxisDataKey="x"
-                    colors={[
-                      'rgba(59, 130, 246, 1)', // Blue for offers
-                      'rgba(16, 185, 129, 1)',  // Green for conversions
-                      'rgba(6, 182, 212, 1)',   // Cyan for positive CSAT
-                      'rgba(239, 68, 68, 1)'    // Red for negative CSAT
-                    ]}
-                  />
+                  {showCharts ? (
+                    <LineChartComponent
+                      data={chartData}
+                      height={220}
+                      theme={theme === 'dark' ? 'dark' : 'light'}
+                      showLegend={true}
+                      xAxisDataKey="x"
+                      colors={[
+                        'rgba(59, 130, 246, 1)', // Blue for offers
+                        'rgba(16, 185, 129, 1)',  // Green for conversions
+                        'rgba(6, 182, 212, 1)',   // Cyan for positive CSAT
+                        'rgba(239, 68, 68, 1)'    // Red for negative CSAT
+                      ]}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-muted-foreground text-sm">
+                        Charts loading...
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               

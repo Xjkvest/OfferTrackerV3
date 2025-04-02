@@ -25,6 +25,34 @@ export function DashboardItemsManager({
   const { dashboardElements, dashboardElementsOrder } = useUser();
   const { offers } = useOffers();
   const [dashboardItems, setDashboardItems] = useState<string[]>([]);
+  const [showCharts, setShowCharts] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  // Delay showing charts to avoid rendering issues when data is loading
+  useEffect(() => {
+    const hasOffers = offers.length > 0;
+    
+    // If there are no offers, don't show charts/analytics at all
+    if (!hasOffers) {
+      setShowCharts(false);
+      setShowAnalytics(false);
+      return;
+    }
+    
+    // Delay showing analytics components to avoid race conditions
+    const chartsTimer = setTimeout(() => {
+      setShowCharts(true);
+    }, 1000);
+    
+    const analyticsTimer = setTimeout(() => {
+      setShowAnalytics(true);
+    }, 2000);
+    
+    return () => {
+      clearTimeout(chartsTimer);
+      clearTimeout(analyticsTimer);
+    };
+  }, [offers]);
 
   // Initialize dashboard items based on order preference and availability
   useEffect(() => {
@@ -54,8 +82,12 @@ export function DashboardItemsManager({
 
   // Render a specific dashboard element
   const renderDashboardItem = (elementId: string) => {
+    // Skip rendering chart-heavy components if no offers
+    const hasNoOffers = offers.length === 0;
+    
     switch (elementId) {
       case 'progress':
+        // Show progress without the charts components
         return (
           <DraggableDashboardItem key={elementId} elementId={elementId}>
             <DashboardProgressGroup
@@ -63,6 +95,7 @@ export function DashboardItemsManager({
               onNewOfferSuccess={handleNewOfferSuccess}
               onClose={() => {}}
               streak={streak}
+              showCharts={showCharts && !hasNoOffers}
             />
           </DraggableDashboardItem>
         );
@@ -85,6 +118,22 @@ export function DashboardItemsManager({
         );
       
       case 'analytics':
+        // Don't render analytics at all if no offers or not ready
+        if (hasNoOffers || !showAnalytics) {
+          return (
+            <DraggableDashboardItem key={elementId} elementId={elementId}>
+              <div className="p-6 bg-card/20 rounded-lg border border-border/40 shadow-sm">
+                <h2 className="text-lg font-semibold mb-2">Analytics</h2>
+                <p className="text-muted-foreground">
+                  {hasNoOffers 
+                    ? "Add some offers to see analytics" 
+                    : "Analytics are loading..."}
+                </p>
+              </div>
+            </DraggableDashboardItem>
+          );
+        }
+        
         return (
           <DraggableDashboardItem key={elementId} elementId={elementId}>
             <DashboardAnalyticsTeaser />
