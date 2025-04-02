@@ -155,11 +155,26 @@ export const getChannelData = (offers: Offer[], availableChannels: string[]): Pi
   });
   
   // Convert to array of objects
-  return Object.keys(channelCounts).map(channel => ({
-    id: channel,
-    label: channel,
-    value: channelCounts[channel]
-  }));
+  const data = Object.keys(channelCounts)
+    .filter(channel => channelCounts[channel] > 0)
+    .map(channel => ({
+      id: channel,
+      label: channel,
+      value: channelCounts[channel],
+      color: undefined // This will be assigned by the chart component
+    }));
+  
+  // Ensure we always return at least one item even if there's no channel data
+  if (data.length === 0) {
+    return [{
+      id: "No Data",
+      label: "No Channel Data",
+      value: 1,
+      color: "#e2e8f0" // Light gray
+    }];
+  }
+  
+  return data;
 };
 
 // Generate offer type data for pie chart
@@ -179,11 +194,26 @@ export const getOfferTypeData = (offers: Offer[], availableTypes: string[]): Pie
   });
   
   // Convert to array of objects
-  return Object.keys(typeCounts).map(type => ({
-    id: type,
-    label: type,
-    value: typeCounts[type]
-  }));
+  const data = Object.keys(typeCounts)
+    .filter(type => typeCounts[type] > 0)
+    .map(type => ({
+      id: type,
+      label: type,
+      value: typeCounts[type],
+      color: undefined // This will be assigned by the chart component
+    }));
+  
+  // Ensure we always return at least one item even if there's no offer type data
+  if (data.length === 0) {
+    return [{
+      id: "No Data",
+      label: "No Offer Type Data",
+      value: 1,
+      color: "#e2e8f0" // Light gray
+    }];
+  }
+  
+  return data;
 };
 
 // Generate CSAT data for pie chart
@@ -193,7 +223,7 @@ export const getCsatData = (offers: Offer[]): PieDataPoint[] => {
   const negative = offers.filter(offer => offer.csat === 'negative').length;
   const noFeedback = offers.filter(offer => !offer.csat).length;
   
-  return [
+  const data = [
     {
       id: "Positive",
       label: "Positive",
@@ -219,6 +249,18 @@ export const getCsatData = (offers: Offer[]): PieDataPoint[] => {
       color: "#94a3b8" // Gray
     }
   ].filter(item => item.value > 0);
+  
+  // Ensure we always return at least one item even if there's no CSAT data
+  if (data.length === 0) {
+    return [{
+      id: "No Data",
+      label: "No CSAT Data",
+      value: 1,
+      color: "#e2e8f0" // Light gray
+    }];
+  }
+
+  return data;
 };
 
 // Generate conversion data for pie chart
@@ -246,7 +288,7 @@ export const getConversionData = (offers: Offer[]): PieDataPoint[] => {
     return false;
   }).length;
   
-  return [
+  const data = [
     {
       id: "Converted",
       label: "Converted",
@@ -263,7 +305,19 @@ export const getConversionData = (offers: Offer[]): PieDataPoint[] => {
       id: "Pending",
       label: "Pending",
       value: pending,
-      color: "#94a3b8" // Gray
+      color: "#f59e0b" // Amber
     }
   ].filter(item => item.value > 0);
+  
+  // Ensure we always return at least one item even if there's no conversion data
+  if (data.length === 0) {
+    return [{
+      id: "No Data",
+      label: "No Conversion Data",
+      value: 1,
+      color: "#e2e8f0" // Light gray
+    }];
+  }
+  
+  return data;
 };
