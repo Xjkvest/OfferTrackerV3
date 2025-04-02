@@ -13,7 +13,7 @@ const COLUMN_MAP = {
   'csat': ['csat', 'satisfaction', 'customer satisfaction', 'rating'],
   'csatComment': ['csatcomment', 'csat comment', 'satisfaction comment', 'rating comment'],
   'caseNumber': ['casenumber', 'case number', 'case', 'case_number', 'case id'],
-  'followupDate': ['followupdate', 'follow up date', 'followup date', 'follow-up date']
+  'followupDate': ['followupdate', 'follow-up date', 'followup date', 'follow up date']
 };
 
 // Helper function to find column index by header

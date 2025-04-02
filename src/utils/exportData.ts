@@ -111,54 +111,39 @@ export function exportToCsv(offers: Offer[], dateRangeText = '') {
     return;
   }
 
+  // Process the data using the rich prepareOfferData function
+  const enrichedOfferData = prepareOfferData(offers);
+  
+  // Create a new workbook and worksheet
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Offers');
   
-  // Define columns
-  worksheet.columns = [
-    { header: 'Case Number', key: 'caseNumber' },
-    { header: 'Channel', key: 'channel' },
-    { header: 'Offer Type', key: 'offerType' },
-    { header: 'Date', key: 'date' },
-    { header: 'CSAT', key: 'csat' },
-    { header: 'CSAT Comment', key: 'csatComment' },
-    { header: 'Converted', key: 'converted' },
-    { header: 'Conversion Date', key: 'conversionDate' },
-    { header: 'Followup Date', key: 'followupDate' },
-    { header: 'Notes', key: 'notes' }
-  ];
-
+  // Add headers
+  const headers = Object.keys(enrichedOfferData[0]);
+  worksheet.addRow(headers);
+  
   // Add data
-  offers.forEach(offer => {
-    worksheet.addRow({
-      caseNumber: offer.caseNumber,
-      channel: offer.channel,
-      offerType: offer.offerType,
-      date: offer.date,
-      csat: offer.csat,
-      csatComment: offer.csatComment,
-      converted: offer.converted ? 'Yes' : 'No',
-      conversionDate: offer.conversionDate,
-      followupDate: offer.followupDate,
-      notes: offer.notes
-    });
+  enrichedOfferData.forEach(offer => {
+    worksheet.addRow(Object.values(offer));
   });
-
+  
   // Generate CSV
   const rows = worksheet.getRows(1, worksheet.rowCount) || [];
   const csvContent = rows.map(row => {
     const values = Object.values(row.values || {}).slice(1);
     return values.map(cell => {
       const value = String(cell || '').replace(/"/g, '""');
-      return value.includes(',') ? `"${value}"` : value;
+      return value.includes(',') || value.includes('\n') ? `"${value}"` : value;
     }).join(',');
   }).join('\n');
-
+  
+  // Export the file
   const fileName = dateRangeText 
     ? `offer-data-${dateRangeText}.csv`
     : `offer-data-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-  
+    
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  
   saveAs(blob, fileName);
   
   return fileName;
@@ -287,7 +272,7 @@ export function exportImportTemplate() {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Template');
 
-  // Define columns with headers
+  // Define columns with headers that match exactly what the import function expects
   const headers = [
     'Date',
     'Offer Type',
@@ -297,7 +282,7 @@ export function exportImportTemplate() {
     'Converted',
     'CSAT',
     'CSAT Comment',
-    'Followup Date'
+    'Follow-up Date'
   ];
 
   // Add headers
@@ -308,7 +293,7 @@ export function exportImportTemplate() {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Add a minimal example
+  // Add a minimal example (with only required fields)
   worksheet.addRow([
     format(today, 'yyyy-MM-dd'),
     'Website Plan',
@@ -334,20 +319,15 @@ export function exportImportTemplate() {
     format(tomorrow, 'yyyy-MM-dd')
   ]);
 
-  // Convert to CSV
-  const rows = worksheet.getSheetValues();
-  const csvContent = rows
-    .slice(1) // Skip the first empty row that getSheetValues returns
-    .map(row => {
-      return (row as any[])
-        .slice(1) // Skip the first empty column that getSheetValues returns
-        .map(cell => {
-          const value = cell?.toString() || '';
-          return value.includes(',') ? `"${value}"` : value;
-        })
-        .join(',');
-    })
-    .join('\n');
+  // Generate CSV
+  const rows = worksheet.getRows(1, worksheet.rowCount) || [];
+  const csvContent = rows.map(row => {
+    const values = row.values ? Object.values(row.values).slice(1) : [];
+    return values.map(cell => {
+      const value = String(cell || '').replace(/"/g, '""');
+      return value.includes(',') || value.includes('\n') ? `"${value}"` : value;
+    }).join(',');
+  }).join('\n');
 
   // Export the file
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
