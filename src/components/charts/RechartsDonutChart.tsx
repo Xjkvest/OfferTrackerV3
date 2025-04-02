@@ -171,7 +171,8 @@ export const RechartsDonutChart: React.FC<RechartsDonutChartProps> = ({
       if (!item || typeof item !== 'object') return {
         name: 'Unknown',
         [dataKey]: 0,
-        percent: 0
+        percent: 0,
+        color: colors[index % colors.length] // Ensure color exists
       };
       
       // Extract value - handle both direct value property and dataKey property
@@ -183,7 +184,7 @@ export const RechartsDonutChart: React.FC<RechartsDonutChartProps> = ({
       return {
         name: name,
         [dataKey]: typeof value === 'number' ? value : 0,
-        color: item.color,
+        color: item.color || colors[index % colors.length], // Always have a color
         percent: total > 0 ? (typeof value === 'number' ? value : 0) / total : 0,
         ...(item.rating !== undefined && { rating: item.rating })
       };
@@ -195,12 +196,18 @@ export const RechartsDonutChart: React.FC<RechartsDonutChartProps> = ({
 
   const transformedData = transformData(data);
   
+  // Make one more safety check to guarantee we have valid data with colors
+  const safeData = transformedData.map((entry, index) => ({
+    ...entry,
+    color: entry.color || colors[index % colors.length]
+  }));
+
   // Check if we have valid data to display
-  const hasValidData = transformedData && transformedData.length > 0 && transformedData.some(item => item[dataKey] > 0);
+  const hasValidData = safeData && safeData.length > 0 && safeData.some(item => item[dataKey] > 0);
   
   // Calculate total value for center text
   const totalValue = hasValidData 
-    ? transformedData.reduce((sum, item) => sum + (item[dataKey] || 0), 0)
+    ? safeData.reduce((sum, item) => sum + (item[dataKey] || 0), 0)
     : 0;
 
   // Custom label renderer
@@ -244,10 +251,23 @@ export const RechartsDonutChart: React.FC<RechartsDonutChartProps> = ({
       return null;
     }
     
+    // Add safety check for payload items
+    const validPayload = payload.map((entry, idx) => {
+      // Ensure each entry has a color property
+      if (!entry || !entry.color) {
+        console.log(`RechartsDonutChart: Legend payload missing color at index ${idx}`, entry);
+        return {
+          ...entry,
+          color: entry?.payload?.color || colors[idx % colors.length] || '#888'
+        };
+      }
+      return entry;
+    });
+    
     // Limit the number of legend items to display
     const maxLegendItems = 4;
-    const displayPayload = payload.slice(0, maxLegendItems);
-    const hasMoreItems = payload.length > maxLegendItems;
+    const displayPayload = validPayload.slice(0, maxLegendItems);
+    const hasMoreItems = validPayload.length > maxLegendItems;
     
     return (
       <div className="flex flex-col items-start">
@@ -259,16 +279,16 @@ export const RechartsDonutChart: React.FC<RechartsDonutChartProps> = ({
                 onMouseLeave={() => setActiveIndex(null)}>
               <div 
                 className="h-1.5 w-1.5 rounded-full mr-1" 
-                style={{ backgroundColor: entry.color }} 
+                style={{ backgroundColor: entry?.color || colors[index % colors.length] || '#888' }} 
               />
               <span className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} truncate max-w-[60px]`}>
-                {entry.value}
+                {entry?.value || 'Unknown'}
               </span>
             </li>
           ))}
           {hasMoreItems && (
             <li className="text-[8px] text-muted-foreground mt-0.5">
-              +{payload.length - maxLegendItems} more
+              +{validPayload.length - maxLegendItems} more
             </li>
           )}
         </ul>
@@ -304,7 +324,7 @@ export const RechartsDonutChart: React.FC<RechartsDonutChartProps> = ({
       <ResponsiveContainer width="100%" height="100%">
         <PieChart margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
           <Pie
-            data={transformedData}
+            data={safeData}
             cx={chartCx}
             cy={chartCy}
             labelLine={false}
@@ -321,7 +341,7 @@ export const RechartsDonutChart: React.FC<RechartsDonutChartProps> = ({
             onMouseEnter={onPieEnter}
             onMouseLeave={onPieLeave}
           >
-            {transformedData.map((entry, index) => (
+            {safeData.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
                 fill={entry.color || colors[index % colors.length]} 
