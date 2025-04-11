@@ -4,7 +4,7 @@ A comprehensive application for tracking offers, conversions, and performance me
 
 ## About
 
-Offer Tracker is a powerful tool designed to help Customer Cussecc teams track their offers, analyze conversion rates, and visualize performance data. The application features a clean, modern interface with robust data visualization capabilities.
+Offer Tracker is a powerful tool designed to help Customer Success teams track their offers, analyze conversion rates, and visualize performance data. The application features a clean, modern interface with robust data visualization capabilities.
 
 ## Features
 
