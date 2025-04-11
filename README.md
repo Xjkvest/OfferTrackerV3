@@ -1,10 +1,10 @@
 # Offer Tracker
 
-A comprehensive application for tracking job offers, conversions, and performance metrics.
+A comprehensive application for tracking offers, conversions, and performance metrics.
 
 ## About
 
-Offer Tracker is a powerful tool designed to help sales professionals and job seekers track their offers, analyze conversion rates, and visualize performance data. The application features a clean, modern interface with robust data visualization capabilities.
+Offer Tracker is a powerful tool designed to help Customer Cussecc teams track their offers, analyze conversion rates, and visualize performance data. The application features a clean, modern interface with robust data visualization capabilities.
 
 ## Features
 
