@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { CaseLink } from "./CaseLink";
 import { differenceInDays } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
+import { generateUUID } from '@/utils/uuid';
 
 interface RecentOffersListProps {
   offers: Offer[];
@@ -120,7 +121,7 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
       
       // Add the new followup to the array
       updatedFollowups.push({
-        id: uuidv4(),
+        id: generateUUID(),
         date: dateString,
         notes: offer.notes,
         completed: false

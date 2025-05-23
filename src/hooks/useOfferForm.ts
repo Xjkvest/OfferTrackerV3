@@ -92,11 +92,13 @@ export function useOfferForm({ onSuccess, initialValues, offerId }: UseOfferForm
   };
 
   const handleSubmitWithDuplicateCheck = async (data: OfferFormValues) => {
+    console.log('handleSubmitWithDuplicateCheck called with:', data);
     setIsSubmitting(true);
     
     // Check for duplicate case numbers
     const duplicate = findDuplicateOffer(data.caseNumber);
     if (duplicate) {
+      console.log('Duplicate offer found:', duplicate);
       setExistingOffer(duplicate);
       setPendingData(data);
       setShowDuplicateDialog(true);
@@ -104,12 +106,25 @@ export function useOfferForm({ onSuccess, initialValues, offerId }: UseOfferForm
       return;
     }
     
+    console.log('No duplicate found, proceeding with submission');
     await handleSubmit(data);
   };
 
   const handleSubmit = async (data: OfferFormValues) => {
     try {
       setIsSubmitting(true);
+      
+      // PWA compatibility: Add logging for debugging
+      console.log('Form submission started:', { offerId, data });
+      
+      // Check if we're in a PWA environment
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                    (window.navigator as any).standalone ||
+                    document.referrer.includes('android-app://');
+      
+      if (isPWA) {
+        console.log('Running in PWA mode');
+      }
       
       // Create an immutable copy of the form data
       const immutableData = JSON.parse(JSON.stringify(data));
@@ -179,11 +194,23 @@ export function useOfferForm({ onSuccess, initialValues, offerId }: UseOfferForm
       
       // Show success state but briefly
       setIsSuccess(true);
-      setTimeout(() => {
+      
+      // PWA compatibility: Ensure proper callback execution
+      const successTimeout = setTimeout(() => {
         setIsSuccess(false);
-        if (onSuccess) onSuccess();
-      }, 300); 
+        if (onSuccess) {
+          try {
+            onSuccess();
+          } catch (callbackError) {
+            console.error('Error in onSuccess callback:', callbackError);
+          }
+        }
+      }, 300);
+      
+      // Store timeout for cleanup if needed
+      return () => clearTimeout(successTimeout);
     } catch (error) {
+      console.error('Form submission error:', error);
       toast({
         title: "Error",
         description: "There was a problem saving your offer",

@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import { Offer } from '@/context/OfferContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parse as parseDate, isValid } from 'date-fns';
+import { generateUUID } from '@/utils/uuid';
 
 // Column mapping for import
 const COLUMN_MAP = {
@@ -116,7 +117,7 @@ export const importFromExcel = async (file: File): Promise<Offer[]> => {
           }
 
           const offer: Offer = {
-            id: uuidv4(),
+            id: generateUUID(),
             date,
             offerType: String(row.getCell(columnIndices.offerType + 1).value || ''),
             channel: String(row.getCell(columnIndices.channel + 1).value || ''),
@@ -222,7 +223,7 @@ export const importFromCSV = async (file: File): Promise<Offer[]> => {
             }
             
             const offer: Offer = {
-              id: uuidv4(),
+              id: generateUUID(),
               date,
               offerType: row[columnIndices.offerType] || '',
               channel: row[columnIndices.channel] || '',

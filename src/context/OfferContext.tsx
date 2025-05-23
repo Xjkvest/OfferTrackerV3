@@ -3,9 +3,9 @@ import { toast } from "@/hooks/use-toast";
 import { useUser } from './UserContext';
 import { storageService } from '@/utils/storageService';
 import { parseISO, isWithinInterval, startOfDay, endOfDay, differenceInDays } from "date-fns";
-import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { calculateEnhancedStreak, StreakInfo } from '@/utils/streakCalculation';
+import { generateUUID } from '@/utils/uuid';
 
 export interface Offer {
   id: string;
@@ -212,7 +212,7 @@ export const OfferProvider: React.FC<OfferProviderProps> = ({ children }) => {
   const addOffer = async (offer: NewOffer & { dateOverride?: string }) => {
     const newOffer: Offer = {
       ...offer,
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       date: offer.dateOverride || new Date().toISOString(),
     };
     

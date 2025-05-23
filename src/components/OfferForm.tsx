@@ -34,6 +34,30 @@ export function OfferForm({ onSuccess, initialValues, offerId, className, compac
     initialValues,
     offerId,
   });
+
+  // PWA fallback: Direct submission handler
+  const handleDirectSubmit = async () => {
+    console.log('Direct submit triggered as fallback');
+    
+    // Validate the form first
+    const isValid = await form.trigger();
+    if (!isValid) {
+      console.log('Form validation failed');
+      return;
+    }
+    
+    // Get form data and submit directly
+    const formData = form.getValues();
+    console.log('Direct submit with data:', formData);
+    
+    // Create a mock event for the submission
+    const mockEvent = new Event('submit', { bubbles: true, cancelable: true });
+    Object.defineProperty(mockEvent, 'preventDefault', { value: () => {} });
+    Object.defineProperty(mockEvent, 'stopPropagation', { value: () => {} });
+    
+    // Call the submission handler directly
+    await onSubmit(mockEvent as any);
+  };
   
   // Create a ref for the first input field to focus it on mount
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -67,11 +91,23 @@ export function OfferForm({ onSuccess, initialValues, offerId, className, compac
     }
   };
 
+  // Enhanced submit handler for PWA compatibility
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Form submission triggered - PWA compatible');
+    
+    // onSubmit is already form.handleSubmit(handleSubmitWithDuplicateCheck)
+    // so we can call it directly with the event
+    onSubmit(e);
+  };
+
   return (
     <div className={`${compact ? 'max-w-full' : 'max-w-md mx-auto'} ${className || ''}`}>
       <Form {...form}>
         <motion.form 
-          onSubmit={onSubmit} 
+          onSubmit={handleFormSubmit} 
           className="space-y-3"
           variants={formVariants}
           initial="hidden"
@@ -115,7 +151,8 @@ export function OfferForm({ onSuccess, initialValues, offerId, className, compac
             <SubmitButton 
               isSubmitting={isSubmitting} 
               isSuccess={isSuccess} 
-              offerId={offerId} 
+              offerId={offerId}
+              onDirectSubmit={handleDirectSubmit}
             />
           </motion.div>
         </motion.form>

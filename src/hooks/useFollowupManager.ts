@@ -2,6 +2,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { Offer, FollowupItem, useOffers } from '@/context/OfferContext';
+import { generateUUID } from '@/utils/uuid';
 
 export function useFollowupManager() {
   const { updateOffer, offers } = useOffers();
@@ -71,7 +72,7 @@ export function useFollowupManager() {
       } else if (offer.followupDate) {
         // Handle legacy format - create a completed followup
         updatedFollowups.push({
-          id: uuidv4(),
+          id: generateUUID(),
           date: offer.followupDate,
           completed: true,
           completedAt: new Date().toISOString(),
@@ -132,7 +133,7 @@ export function useFollowupManager() {
       
       // Add the new followup
       updatedFollowups.push({
-        id: uuidv4(),
+        id: generateUUID(),
         date: followupDate,
         notes: notes,
         completed: false
