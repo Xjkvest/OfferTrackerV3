@@ -11,7 +11,7 @@ export function DraggableDashboardItem({
   children 
 }: DraggableDashboardItemProps) {
   return (
-    <div className="mb-6 relative h-full">
+    <div className="relative h-full">
       <div className="h-full">
         {children}
       </div>

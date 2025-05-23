@@ -7,7 +7,7 @@ import { DashboardPreferences } from "./DashboardPreferences";
 import { toast } from "@/hooks/use-toast";
 import { DashboardItemsManager } from "./dashboard/DashboardItemsManager";
 import { DashboardHeader } from "./dashboard/DashboardHeader";
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useSimpleKeyboardShortcuts } from "@/hooks/use-simple-keyboard-shortcuts";
 import { HelpButton } from "./HelpButton";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +19,8 @@ export function Dashboard() {
   const [preferenceDialogOpen, setPreferenceDialogOpen] = useState(false);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const navigate = useNavigate();
+  
+
   
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -55,28 +57,10 @@ export function Dashboard() {
     navigate("/help");
   }, [navigate]);
 
-  // Set up keyboard shortcuts
-  useKeyboardShortcuts({
-    newOffer: {
-      combo: { key: 'n', shiftKey: true, metaKey: true },
-      handler: handleNewOfferClick,
-      description: 'Create a new offer (⌘ Shift N)',
-    },
-    quickOffer: {
-      combo: { key: 'o', shiftKey: true, metaKey: true },
-      handler: handleNewOfferClick,
-      description: 'Quick log offer (⌘ Shift O)',
-    },
-    preferences: {
-      combo: { key: ',', metaKey: true },
-      handler: handlePreferencesClick,
-      description: 'Open preferences (⌘ ,)',
-    },
-    help: {
-      combo: { key: '/', shiftKey: true, metaKey: true },
-      handler: handleHelpClick,
-      description: 'Show keyboard shortcuts (⌘ Shift /)',
-    },
+  // Setup keyboard shortcuts
+  useSimpleKeyboardShortcuts({
+    onNewOffer: handleNewOfferClick,
+    onPreferences: handlePreferencesClick,
   });
 
   useEffect(() => {
@@ -122,7 +106,7 @@ export function Dashboard() {
 
   return (
     <motion.div
-      className="container max-w-4xl mx-auto p-4 space-y-6"
+      className="container max-w-4xl mx-auto p-6 space-y-6"
       variants={containerVariants}
       initial="hidden"
       animate="visible"

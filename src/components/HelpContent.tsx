@@ -1,5 +1,6 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
+
 import { Separator } from "@/components/ui/separator";
 import { 
   ClipboardCheck, 
@@ -27,6 +28,17 @@ import {
 } from "lucide-react";
 
 export function HelpContent() {
+  const shortcuts = [
+    { id: '1', keys: '⌘ Shift N', description: 'Create a new offer' },
+    { id: '2', keys: '⌘ Shift O', description: 'Quick log offer' },
+    { id: '3', keys: '⌘ ,', description: 'Open preferences' },
+    { id: '4', keys: '⌘ Shift /', description: 'Show keyboard shortcuts help' },
+    { id: '5', keys: '⌘ Shift D', description: 'Go to dashboard' },
+    { id: '6', keys: '⌘ Shift L', description: 'Go to offers list' },
+    { id: '7', keys: '⌘ Shift A', description: 'Go to analytics' },
+    { id: '8', keys: '⌘ Shift S', description: 'Go to settings' }
+  ];
+  
   return (
     <div className="space-y-6 py-2">
       <h2 className="text-xl font-bold text-center bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">OfferTracker Help Guide</h2>
@@ -81,10 +93,11 @@ export function HelpContent() {
           Use these Mac keyboard shortcuts to work faster:
         </p>
         <ul className="list-disc text-sm text-muted-foreground pl-6 space-y-1">
-          <li><span className="font-medium">⌘ Shift N</span> - Create a new offer</li>
-          <li><span className="font-medium">⌘ Shift O</span> - Quick log offer</li>
-          <li><span className="font-medium">⌘ ,</span> - Open preferences</li>
-          <li><span className="font-medium">⌘ Shift /</span> - Show this help dialog</li>
+          {shortcuts.slice(0, 6).map((shortcut) => (
+            <li key={shortcut.id}>
+              <span className="font-medium">{shortcut.keys}</span> - {shortcut.description}
+            </li>
+          ))}
         </ul>
         <p className="text-sm text-muted-foreground mt-2">
           These shortcuts work from anywhere in the application except when typing in text fields.

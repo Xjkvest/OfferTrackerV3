@@ -52,10 +52,6 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
     const offer = offers.find(o => o.id === offerId);
     if (!offer) return;
 
-    const offerDate = new Date(offer.date);
-    const today = new Date();
-    const daysSinceOffer = differenceInDays(today, offerDate);
-
     if (converted) {
       updateOffer(offerId, { 
         converted: true,
@@ -63,7 +59,7 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
       });
       toast({
         title: "Conversion Status Updated",
-        description: "Offer marked as converted.",
+        description: "Offer marked as converted. Click again to change the date.",
       });
     } else {
       updateOffer(offerId, { 
@@ -73,6 +69,19 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
       toast({
         title: "Conversion Status Updated",
         description: "Offer marked as not converted.",
+      });
+    }
+  };
+
+  const handleConversionDateChange = (offerId: string, date: Date | undefined) => {
+    if (date) {
+      updateOffer(offerId, { 
+        converted: true,
+        conversionDate: date.toISOString().split('T')[0]
+      });
+      toast({
+        title: "Offer Converted",
+        description: `Marked as converted on ${format(date, "PPP")}`,
       });
     }
   };
@@ -437,21 +446,62 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
                       </PopoverContent>
                     </Popover>
 
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className={`h-7 w-7 rounded-full ${offer.converted ? 'bg-success/20' : ''}`}
-                          onClick={() => handleConversionUpdate(offer.id, !offer.converted)}
-                        >
-                          <ShoppingCart className={`h-3.5 w-3.5 ${offer.converted ? 'text-success' : 'text-muted-foreground'}`} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left">
-                        <p>{offer.converted ? 'Remove conversion' : 'Mark as converted'}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                    {/* Simplified Conversion Button */}
+                    {offer.converted ? (
+                      // If converted, click removes conversion
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 rounded-full bg-success/20"
+                            onClick={() => handleConversionUpdate(offer.id, false)}
+                          >
+                            <ShoppingCart className="h-3.5 w-3.5 text-success" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          <p>Remove conversion</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      // If not converted, click opens date picker
+                      <Popover>
+                        <Tooltip>
+                          <PopoverTrigger asChild>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 rounded-full"
+                              >
+                                <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                          </PopoverTrigger>
+                          <TooltipContent side="left">
+                            <p>Mark as converted</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <div className="p-3 space-y-2">
+                            <div className="text-sm font-medium">Select Conversion Date</div>
+                            <Calendar
+                              mode="single"
+                              selected={undefined}
+                              onSelect={(date) => handleConversionDateChange(offer.id, date)}
+                              disabled={(date) => {
+                                const offerDate = new Date(offer.date);
+                                offerDate.setHours(0, 0, 0, 0);
+                                return date < offerDate;
+                              }}
+                              initialFocus
+                              className="pointer-events-auto"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </div>
                 </div>
               ))}

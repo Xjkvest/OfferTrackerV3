@@ -1,5 +1,6 @@
 
 import React from "react";
+import { useUser } from "@/context/UserContext";
 
 interface TimeBasedGreetingProps {
   name: string;
@@ -7,6 +8,7 @@ interface TimeBasedGreetingProps {
 }
 
 export function TimeBasedGreeting({ name, className = "" }: TimeBasedGreetingProps) {
+  const { settings } = useUser();
   const [greeting, setGreeting] = React.useState("");
   
   React.useEffect(() => {
@@ -35,11 +37,33 @@ export function TimeBasedGreeting({ name, className = "" }: TimeBasedGreetingPro
     
     return () => clearInterval(interval);
   }, []);
+
+  // Handle different greeting styles
+  const renderGreeting = () => {
+    const firstName = name.split(' ')[0] || name;
+    
+    switch (settings.greetingStyle) {
+      case "none":
+        return null; // Show no greeting
+      
+      case "fixed":
+        return (
+          <div className={className}>
+            <span className="font-medium">Hi, </span>
+            <span className="font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent">{firstName}</span>
+          </div>
+        );
+      
+      case "auto":
+      default:
+        return (
+          <div className={className}>
+            <span className="font-medium">{greeting}, </span>
+            <span className="font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent">{firstName}</span>
+          </div>
+        );
+    }
+  };
   
-  return (
-    <div className={className}>
-      <span className="font-medium">{greeting}, </span>
-      <span className="font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent">{name}</span>
-    </div>
-  );
+  return renderGreeting();
 }

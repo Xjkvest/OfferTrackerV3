@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
@@ -96,6 +97,7 @@ const ShortcutItem = ({ keys, description }: { keys: string, description: string
 );
 
 const Help: React.FC = () => {
+  
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -694,12 +696,13 @@ const Help: React.FC = () => {
               <ShortcutItem keys="⌘ Shift N" description="Create new offer" />
               <ShortcutItem keys="⌘ Shift O" description="Quick log offer" />
               <ShortcutItem keys="⌘ ," description="Open preferences" />
-              <ShortcutItem keys="⌘ Shift /" description="Open help" />
+              <ShortcutItem keys="⌘ Shift /" description="Show keyboard shortcuts" />
               <ShortcutItem keys="⌘ Shift D" description="Go to dashboard" />
-              <ShortcutItem keys="⌘ Shift F" description="Focus search" />
-              <ShortcutItem keys="⌘ Shift S" description="Save changes" />
+              <ShortcutItem keys="⌘ Shift L" description="Go to offers list" />
               <ShortcutItem keys="⌘ Shift A" description="Go to analytics" />
+              <ShortcutItem keys="⌘ Shift S" description="Go to settings" />
               <ShortcutItem keys="⌘ Shift H" description="Go to help page" />
+              <ShortcutItem keys="⌘ Shift B" description="Go to notifications" />
               <ShortcutItem keys="Escape" description="Close dialogs" />
             </div>
           </Section>

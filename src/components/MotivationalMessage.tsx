@@ -122,10 +122,15 @@ const messages = {
 
 export function MotivationalMessage() {
   const { todaysOffers, offers, streak = 0 } = useOffers();
-  const { dailyGoal, userName } = useUser();
+  const { dailyGoal, userName, settings } = useUser();
   const [message, setMessage] = useState("");
   const [tip, setTip] = useState("");
   const [key, setKey] = useState(0);
+
+  // Return null if motivational messages are disabled
+  if (!settings.showMotivationalMessages) {
+    return null;
+  }
   
   // Get the message category based on current status
   const getMessageCategory = () => {

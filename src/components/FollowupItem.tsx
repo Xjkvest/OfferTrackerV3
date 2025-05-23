@@ -76,6 +76,12 @@ export function FollowupItem({
           <span className={isActuallyOverdue && !isCompleted ? "text-red-500" : ""}>
             {followupDate ? format(new Date(followupDate), "MMM d") : "No date"}
           </span>
+          {/* Show total follow-up count if there are multiple active ones */}
+          {offer.followups && offer.followups.filter(f => !f.completed).length > 1 && (
+            <span className="mx-1 text-blue-500 text-[10px] bg-blue-100 dark:bg-blue-900/30 px-1 rounded">
+              +{offer.followups.filter(f => !f.completed).length - 1} more
+            </span>
+          )}
           <span className="mx-1">•</span>
           {offer.channel}
           

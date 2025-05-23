@@ -273,15 +273,14 @@ export function FollowupList({ onOfferClick }: FollowupListProps) {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {/* Show overdue items first */}
                         {overdueFollowups.map((offer) => {
-                          // Get the active followup (not completed)
-                          const activeFollowup = offer.followups?.find(f => !f.completed) || 
-                            getMostRecentFollowup(offer);
+                          // Get the most urgent (earliest) active followup
+                          const mostUrgentFollowup = getMostRecentFollowup(offer);
                           
                           return (
                             <FollowupItem 
                               key={offer.id} 
                               offer={offer} 
-                              followup={activeFollowup}
+                              followup={mostUrgentFollowup}
                               onComplete={(e) => handleMarkAsCompleted(offer, e)} 
                               onClick={() => handleOfferClick(offer)}
                               isUrgent 
@@ -293,15 +292,14 @@ export function FollowupList({ onOfferClick }: FollowupListProps) {
                         
                         {/* Then show today's items */}
                         {todaysFollowups.map((offer) => {
-                          // Get the active followup (not completed)
-                          const activeFollowup = offer.followups?.find(f => !f.completed) || 
-                            getMostRecentFollowup(offer);
+                          // Get the most urgent (earliest) active followup
+                          const mostUrgentFollowup = getMostRecentFollowup(offer);
                             
                           return (
                             <FollowupItem 
                               key={offer.id} 
                               offer={offer} 
-                              followup={activeFollowup}
+                              followup={mostUrgentFollowup}
                               onComplete={(e) => handleMarkAsCompleted(offer, e)} 
                               onClick={() => handleOfferClick(offer)}
                               isUrgent 
@@ -322,15 +320,14 @@ export function FollowupList({ onOfferClick }: FollowupListProps) {
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {upcomingFollowups.slice(0, 4).map((offer) => {
-                          // Get the active followup (not completed)
-                          const activeFollowup = offer.followups?.find(f => !f.completed) || 
-                            getMostRecentFollowup(offer);
+                          // Get the most urgent (earliest) active followup
+                          const mostUrgentFollowup = getMostRecentFollowup(offer);
                             
                           return (
                             <FollowupItem 
                               key={offer.id} 
                               offer={offer} 
-                              followup={activeFollowup}
+                              followup={mostUrgentFollowup}
                               onComplete={(e) => handleMarkAsCompleted(offer, e)}
                               onClick={() => handleOfferClick(offer)}
                               onAddNewFollowup={() => openAddFollowupModal(offer.id)}

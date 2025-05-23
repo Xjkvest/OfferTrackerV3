@@ -42,20 +42,20 @@ export function useFollowupManager() {
           return;
         }
       } else if (updatedFollowups.length > 0) {
-        // If no specific followupId is provided, find the most recent active followup
+        // If no specific followupId is provided, find the most urgent (earliest) active followup
         const activeFollowups = updatedFollowups.filter(f => !f.completed);
         
         if (activeFollowups.length > 0) {
-          // Sort by date (newest first)
+          // Sort by date (earliest first) to get the most urgent
           const sortedActiveFollowups = activeFollowups.sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
           );
           
-          // Get the most recent active followup
-          const mostRecentFollowup = sortedActiveFollowups[0];
+          // Get the most urgent (earliest) active followup
+          const mostUrgentFollowup = sortedActiveFollowups[0];
           
           // Find and update this followup in the original array
-          const followupIndex = updatedFollowups.findIndex(f => f.id === mostRecentFollowup.id);
+          const followupIndex = updatedFollowups.findIndex(f => f.id === mostUrgentFollowup.id);
           
           if (followupIndex >= 0) {
             updatedFollowups[followupIndex] = {
@@ -246,9 +246,9 @@ export function useFollowupManager() {
     if (offer.followups && offer.followups.length > 0) {
       const activeFollowups = offer.followups.filter(f => !f.completed);
       if (activeFollowups.length > 0) {
-        // Sort by date (newest first) and return the first one
+        // Sort by date (earliest first) and return the most urgent one
         return activeFollowups
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date;
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0].date;
       }
     }
     
@@ -292,20 +292,28 @@ export function useFollowupManager() {
     return 'active';
   }, [hasAnyFollowups, hasOnlyCompletedFollowups, isFollowupOverdue, isFollowupDueToday]);
 
-  // Get the most recent followup for an offer
-  const getMostRecentFollowup = useCallback((offer: Offer): FollowupItem | null => {
-    // If using new structure
+  // Get all active followups for an offer, sorted by urgency (earliest first)
+  const getActiveFollowupsSorted = useCallback((offer: Offer): FollowupItem[] => {
     if (offer.followups?.length) {
-      // Find active followups
       const activeFollowups = offer.followups.filter(f => !f.completed);
       
       if (activeFollowups.length > 0) {
-        // Sort by date (earliest first) and return the first one
+        // Sort by date (earliest first) for urgency
         return [...activeFollowups].sort(
           (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        )[0];
+        );
       }
-      return null;
+    }
+    
+    return [];
+  }, []);
+
+  // Get the most urgent (earliest) active followup for an offer
+  const getMostUrgentFollowup = useCallback((offer: Offer): FollowupItem | null => {
+    const activeFollowups = getActiveFollowupsSorted(offer);
+    
+    if (activeFollowups.length > 0) {
+      return activeFollowups[0]; // First one is most urgent
     }
     
     // Fall back to legacy field
@@ -318,7 +326,12 @@ export function useFollowupManager() {
     }
     
     return null;
-  }, []);
+  }, [getActiveFollowupsSorted]);
+
+  // Get the most recent followup for an offer (alias for backward compatibility)
+  const getMostRecentFollowup = useCallback((offer: Offer): FollowupItem | null => {
+    return getMostUrgentFollowup(offer);
+  }, [getMostUrgentFollowup]);
 
   // Categorize followups into today, overdue, and upcoming
   const getCategorizedFollowups = useCallback(() => {
@@ -411,6 +424,8 @@ export function useFollowupManager() {
     addNewFollowup,
     clearAllFollowups,
     getMostRecentFollowup,
+    getMostUrgentFollowup,
+    getActiveFollowupsSorted,
     getCategorizedFollowups,
     getAllFollowableOffers,
     hasActiveFollowup,

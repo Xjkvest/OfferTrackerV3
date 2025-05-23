@@ -1,5 +1,6 @@
 import React from "react";
 import { useTheme } from "@/context/ThemeContext";
+import { useUser } from "@/context/UserContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -7,16 +8,62 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LayoutGrid, MonitorSmartphone, Moon, Sun } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 export function AppearanceLayout() {
   const { 
-    fontSize, 
-    setFontSize, 
     appDensity, 
     setAppDensity,
     showAppearancePreview,
     setShowAppearancePreview 
   } = useTheme();
+  
+  const { settings, updateSettings } = useUser();
+
+  // Convert between UserContext font size format and ThemeContext format
+  const fontSizeToClass = {
+    small: "text-sm",
+    medium: "text-base", 
+    large: "text-lg"
+  } as const;
+
+  const classToFontSize = {
+    "text-sm": "small",
+    "text-base": "medium",
+    "text-lg": "large"
+  } as const;
+
+  const handleFontSizeChange = (newSize: "small" | "medium" | "large") => {
+    updateSettings({ fontSizePreference: newSize });
+    
+    // Also update ThemeContext for immediate effect
+    const className = fontSizeToClass[newSize];
+    document.documentElement.classList.remove('text-sm', 'text-base', 'text-lg');
+    document.documentElement.classList.add(className);
+    
+    toast({
+      title: "Font Size Updated",
+      description: `Font size has been set to ${newSize}.`,
+    });
+  };
+
+  // Convert UserContext density format to ThemeContext format
+  const densityToClass = {
+    compact: "density-compact",
+    comfortable: "density-comfortable",
+    cozy: "density-cozy"
+  } as const;
+
+  const handleDensityChange = (newDensity: "density-compact" | "density-comfortable" | "density-cozy") => {
+    const userDensity = newDensity.replace("density-", "") as "compact" | "comfortable" | "cozy";
+    updateSettings({ dashboardDensity: userDensity });
+    setAppDensity(newDensity);
+    
+    toast({
+      title: "UI Density Updated", 
+      description: `Interface density has been set to ${userDensity}.`,
+    });
+  };
   
   return (
     <Card>
@@ -50,18 +97,18 @@ export function AppearanceLayout() {
           </div>
           
           <RadioGroup
-            value={fontSize}
-            onValueChange={setFontSize}
+            value={settings.fontSizePreference}
+            onValueChange={handleFontSizeChange}
             className="grid grid-cols-3 gap-4"
           >
             <div className="cursor-pointer">
               <RadioGroupItem
-                value="text-sm"
-                id="text-sm"
+                value="small"
+                id="small"
                 className="peer sr-only"
               />
               <Label
-                htmlFor="text-sm"
+                htmlFor="small"
                 className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
               >
                 <span className="text-sm">Small</span>
@@ -70,12 +117,12 @@ export function AppearanceLayout() {
             
             <div className="cursor-pointer">
               <RadioGroupItem
-                value="text-base"
-                id="text-base"
+                value="medium"
+                id="medium"
                 className="peer sr-only"
               />
               <Label
-                htmlFor="text-base"
+                htmlFor="medium"
                 className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
               >
                 <span className="text-base">Medium</span>
@@ -84,12 +131,12 @@ export function AppearanceLayout() {
             
             <div className="cursor-pointer">
               <RadioGroupItem
-                value="text-lg"
-                id="text-lg"
+                value="large"
+                id="large"
                 className="peer sr-only"
               />
               <Label
-                htmlFor="text-lg"
+                htmlFor="large"
                 className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
               >
                 <span className="text-lg">Large</span>
@@ -109,8 +156,8 @@ export function AppearanceLayout() {
           </div>
           
           <RadioGroup
-            value={appDensity}
-            onValueChange={setAppDensity}
+            value={densityToClass[settings.dashboardDensity]}
+            onValueChange={handleDensityChange}
             className="grid grid-cols-3 gap-4"
           >
             <div className="cursor-pointer">

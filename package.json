@@ -1,7 +1,7 @@
 {
   "name": "offer-tracker",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -13,7 +13,8 @@
     "start": "electron .",
     "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
     "electron:build": "npm run build && electron-builder build --mac",
-    "generate-icons": "node scripts/generate-icons.js"
+    "generate-icons": "node scripts/generate-icons.js",
+    "version:help": "node scripts/update-version.cjs --example"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

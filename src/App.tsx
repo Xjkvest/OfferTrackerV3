@@ -5,8 +5,13 @@ import { Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { UserProvider } from "@/context/UserContext";
 import { OfferProvider } from "@/context/OfferContext";
+import { KeyboardShortcutsProvider } from "@/context/KeyboardShortcutsContext";
 import { AnimatedTransition } from "@/components/AnimatedTransition";
 import { Header } from "@/components/Header";
+import { SimpleKeyboardShortcutsDialog } from "@/components/SimpleKeyboardShortcutsDialog";
+import { PWAWhatsNewDialog } from "@/components/PWAWhatsNewDialog";
+import { useSettingsSync } from "@/hooks/use-settings-sync";
+import { usePWAVersionCheck } from "@/hooks/usePWAVersionCheck";
 import { lazy, Suspense } from "react";
 import { LazyMotion, domAnimation } from "framer-motion";
 import { HashRouter } from "react-router-dom";
@@ -31,9 +36,7 @@ const PageLoader = () => (
   </div>
 );
 
-// Add file-saver and xlsx for export
-import { saveAs } from "file-saver";
-import * as XLSX from "xlsx";
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +49,23 @@ const queryClient = new QueryClient({
   },
 });
 
+// Component to handle settings sync and version checking within providers
+const AppManager = () => {
+  useSettingsSync();
+  const { showUpdateDialog, updateInfo, dismissUpdate, isPWA, swUpdateAvailable, refreshPWA } = usePWAVersionCheck();
+  
+  return (
+    <PWAWhatsNewDialog
+      open={showUpdateDialog}
+      onClose={dismissUpdate}
+      updateInfo={updateInfo}
+      isPWA={isPWA}
+      swUpdateAvailable={swUpdateAvailable}
+      onRefreshPWA={refreshPWA}
+    />
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LazyMotion features={domAnimation}>
@@ -54,29 +74,33 @@ const App = () => (
           <OfferProvider>
             <TooltipProvider>
               <Toaster />
+              <AppManager />
               <HashRouter>
-                <Header />
-                <Suspense
-                  fallback={
-                    <div className="flex h-[90vh] items-center justify-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  }
-                >
-                  <main className="min-h-[90vh] bg-background pb-8 pt-4">
-                    <Routes>
-                      <Route path="/" element={<AppLayout />}>
-                        <Route index element={<Index />} />
-                        <Route path="offers" element={<Offers />} />
-                        <Route path="analytics" element={<Analytics />} />
-                        <Route path="settings" element={<Settings />} />
-                        <Route path="notifications" element={<Notifications />} />
-                        <Route path="help" element={<Help />} />
-                        <Route path="*" element={<NotFound />} />
-                      </Route>
-                    </Routes>
-                  </main>
-                </Suspense>
+                {/* <KeyboardShortcutsProvider> */}
+                  <Header />
+                  <Suspense
+                    fallback={
+                      <div className="flex h-[90vh] items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    }
+                  >
+                    <main className="min-h-[90vh] bg-background pb-8 pt-4">
+                      <Routes>
+                        <Route path="/" element={<AppLayout />}>
+                          <Route index element={<Index />} />
+                          <Route path="offers" element={<Offers />} />
+                          <Route path="analytics" element={<Analytics />} />
+                          <Route path="settings" element={<Settings />} />
+                          <Route path="notifications" element={<Notifications />} />
+                          <Route path="help" element={<Help />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Route>
+                      </Routes>
+                    </main>
+                  </Suspense>
+                {/* </KeyboardShortcutsProvider> */}
+                <SimpleKeyboardShortcutsDialog />
               </HashRouter>
             </TooltipProvider>
           </OfferProvider>

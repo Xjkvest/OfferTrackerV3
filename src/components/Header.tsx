@@ -10,6 +10,7 @@ import { MobileNavDrawer } from "./MobileNavDrawer";
 import { FloatingActionButton } from "./FloatingActionButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationMenu } from "./NotificationMenu";
+import { useSimpleKeyboardShortcuts } from "@/hooks/use-simple-keyboard-shortcuts";
 
 export function Header() {
   const location = useLocation();
@@ -27,6 +28,13 @@ export function Header() {
   const handleNewOfferClick = () => {
     setOfferDialogOpen(true);
   };
+
+  // Setup keyboard shortcuts
+  useSimpleKeyboardShortcuts({
+    onNewOffer: handleNewOfferClick,
+  });
+
+
 
   return (
     <>

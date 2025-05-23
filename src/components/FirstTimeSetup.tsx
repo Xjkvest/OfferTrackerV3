@@ -308,7 +308,7 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
             exit="out"
             variants={pageVariants}
             transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
-            className="flex-1 overflow-y-auto pb-2"
+            className="flex-1 overflow-y-auto pb-2 max-w-full overflow-x-hidden"
             style={{ maxHeight: "270px" }}
           >
             {step === 1 && (
@@ -559,8 +559,8 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
             )}
 
             {step === 5 && (
-              <div className="space-y-3">
-                <div>
+              <div className="space-y-3 max-w-full overflow-hidden">
+                <div className="max-w-full overflow-hidden">
                   <Label htmlFor="baseUrl" className="text-base">Case Link Base URL (Optional)</Label>
                   <div className="pt-1 pb-2">
                     <div className="relative">
@@ -587,30 +587,39 @@ export function FirstTimeSetup({ onComplete }: FirstTimeSetupProps) {
                   </p>
                 </div>
 
-                <div className="mt-4 p-3 bg-muted/40 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-cyan-100 dark:bg-cyan-900/20 flex items-center justify-center mr-2">
+                <div className="mt-4 p-3 bg-muted/40 rounded-lg max-w-full overflow-hidden">
+                  <div className="flex items-center min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-cyan-100 dark:bg-cyan-900/20 flex items-center justify-center mr-2 flex-shrink-0">
                       <Eye className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-medium text-sm">Preview</h3>
                       <p className="text-xs text-muted-foreground">Here's how case links will appear</p>
                     </div>
                   </div>
                   
-                  <div className="mt-2 p-2 bg-background rounded-md">
+                  <div className="mt-2 p-2 bg-background rounded-md w-full overflow-hidden">
                     {baseUrlInput && !baseUrlError ? (
-                      <div className="text-sm flex items-center">
-                        Case <a 
-                          href="#" 
-                          onClick={(e) => e.preventDefault()}
-                          className="mx-1 text-blue-500 hover:underline inline-flex items-center"
-                        >
-                          #12345
-                          <ExternalLink className="h-3 w-3 ml-1" />
-                        </a> 
-                        will link to 
-                        <span className="ml-1 font-mono text-xs bg-muted px-1 py-0.5 rounded">{baseUrlInput}12345</span>
+                      <div className="text-sm space-y-2 w-full">
+                        <div className="w-full">
+                          <span>Case </span>
+                          <a 
+                            href="#" 
+                            onClick={(e) => e.preventDefault()}
+                            className="text-blue-500 hover:underline inline-flex items-center"
+                          >
+                            #12345
+                            <ExternalLink className="h-3 w-3 ml-1" />
+                          </a>
+                          <span> will link to:</span>
+                        </div>
+                        <div className="w-full">
+                          <div className="font-mono text-xs bg-muted px-2 py-1.5 rounded border w-full">
+                            <div className="break-all text-xs" title={`${baseUrlInput}12345`}>
+                              {baseUrlInput}12345
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div className="text-sm text-muted-foreground">

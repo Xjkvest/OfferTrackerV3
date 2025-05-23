@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useOffers } from "@/context/OfferContext";
+import { useOffers, Offer } from "@/context/OfferContext";
 import { OfferDialog } from "@/components/OfferDialog";
 import { PlusCircle, Clock, Filter, Search, Download, X, RefreshCw } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { filterOffers, getRecentOffers } from "@/utils/offerFilters";
 import { exportToCsv } from "@/utils/exportData";
@@ -85,6 +86,10 @@ const Offers = () => {
   // Dialog state
   const [offerDialogOpen, setOfferDialogOpen] = useState(false);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [followupDialogOpen, setFollowupDialogOpen] = useState(false);
+  const [followupOfferId, setFollowupOfferId] = useState<string | null>(null);
+  const [conversionDialogOpen, setConversionDialogOpen] = useState(false);
+  const [conversionOfferId, setConversionOfferId] = useState<string | null>(null);
   const isMobile = useIsMobile();
   
   // Filter states (persisted in URL for sharing/bookmarking)
@@ -222,8 +227,8 @@ const Offers = () => {
       dateRange: startDate && endDate ? { start: startDate, end: endDate } : undefined,
       channel: selectedChannel || undefined,
       offerType: selectedType || undefined,
-      csat: selectedCSAT as any,
-      converted: selectedConversion as any
+      csat: selectedCSAT as 'positive' | 'neutral' | 'negative' | undefined,
+      converted: selectedConversion === 'converted' ? true : selectedConversion === 'not-converted' ? false : undefined
     });
     
     // Apply sorting
@@ -303,7 +308,7 @@ const Offers = () => {
   };
   
   // Get conversion lag
-  const getConversionLag = (offer: any) => {
+  const getConversionLag = (offer: Offer) => {
     if (!offer.converted && offer.converted !== undefined) return null;
     
     const offerDate = new Date(offer.date);
@@ -371,6 +376,19 @@ const Offers = () => {
       toast({
         title: "Conversion Status Updated",
         description: "Offer marked as not converted.",
+      });
+    }
+  };
+
+  const handleConversionDateSelect = (offerId: string, date: Date | undefined) => {
+    if (date) {
+      updateOffer(offerId, { 
+        converted: true,
+        conversionDate: date.toISOString().split('T')[0]
+      });
+      toast({
+        title: "Offer Converted",
+        description: `Marked as converted on ${format(date, "PPP")}`,
       });
     }
   };
@@ -448,7 +466,7 @@ const Offers = () => {
   };
   
   // Helper for rendering followup info
-  const getFollowupInfo = (offer: any) => {
+  const getFollowupInfo = (offer: Offer) => {
     const status = getFollowupStatus(offer);
     
     switch (status) {
@@ -484,7 +502,7 @@ const Offers = () => {
   };
   
   // Render the actions dropdown
-  const renderActionsDropdown = (offer: any) => {
+  const renderActionsDropdown = (offer: Offer) => {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -509,14 +527,20 @@ const Offers = () => {
           </DropdownMenuItem>
           
           {/* Conversion options */}
-          <DropdownMenuItem onClick={() => handleConversionUpdate(offer.id, true)}>
-            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-            Mark converted
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleConversionUpdate(offer.id, false)}>
-            <X className="h-4 w-4 mr-2 text-red-500" />
-            Mark not converted
-          </DropdownMenuItem>
+          {offer.converted ? (
+            <DropdownMenuItem onClick={() => handleConversionUpdate(offer.id, false)}>
+              <X className="h-4 w-4 mr-2 text-red-500" />
+              Remove conversion
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={() => {
+              setConversionOfferId(offer.id);
+              setConversionDialogOpen(true);
+            }}>
+              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+              Mark converted
+            </DropdownMenuItem>
+          )}
           
           {/* Followup options */}
           <DropdownMenuItem onClick={() => handleAddFollowupForToday(offer.id)}>
@@ -531,21 +555,15 @@ const Offers = () => {
             </DropdownMenuItem>
           )}
           
-          <Popover>
-            <PopoverTrigger asChild>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <CalendarIcon className="h-4 w-4 mr-2 text-blue-500" />
-                Schedule followup
-              </DropdownMenuItem>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                initialFocus
-                onSelect={(date) => handleFollowupDateChange(offer.id, date)}
-              />
-            </PopoverContent>
-          </Popover>
+          <DropdownMenuItem onClick={() => {
+            if (offer?.id) {
+              setFollowupOfferId(offer.id);
+              setFollowupDialogOpen(true);
+            }
+          }}>
+            <CalendarIcon className="h-4 w-4 mr-2 text-blue-500" />
+            Schedule followup
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -1129,6 +1147,100 @@ const Offers = () => {
             // Refresh data after setting up a new offer
           }}
         />
+        
+        {/* Follow-up Schedule Dialog */}
+        {followupDialogOpen && followupOfferId && (() => {
+          const selectedOffer = offers.find(o => o.id === followupOfferId);
+          if (!selectedOffer) return null;
+          
+          return (
+            <Dialog open={followupDialogOpen} onOpenChange={setFollowupDialogOpen}>
+              <DialogContent className="sm:max-w-[350px] p-0 overflow-hidden">
+                <DialogHeader className="px-4 py-3 bg-gradient-to-r from-blue-500/10 to-indigo-500/5 border-b">
+                  <DialogTitle className="text-lg flex items-center gap-2">
+                    <CalendarClock className="h-5 w-5 text-blue-500" />
+                    Schedule Follow-up
+                  </DialogTitle>
+                  <div className="mt-2">
+                    <p className="text-sm font-medium">
+                      {selectedOffer.offerType}
+                      <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                        #{selectedOffer.caseNumber}
+                      </span>
+                    </p>
+                  </div>
+                </DialogHeader>
+                <div className="p-3">
+                  <Calendar
+                    mode="single"
+                    selected={undefined}
+                    onSelect={(date) => {
+                      if (date && followupOfferId) {
+                        handleFollowupDateChange(followupOfferId, date);
+                        setFollowupDialogOpen(false);
+                        setFollowupOfferId(null);
+                      }
+                    }}
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return date < today;
+                    }}
+                    initialFocus
+                    className="w-full"
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
+
+        {/* Conversion Date Dialog */}
+        {conversionDialogOpen && conversionOfferId && (() => {
+          const selectedOffer = offers.find(o => o.id === conversionOfferId);
+          if (!selectedOffer) return null;
+          
+          return (
+            <Dialog open={conversionDialogOpen} onOpenChange={setConversionDialogOpen}>
+              <DialogContent className="sm:max-w-[350px] p-0 overflow-hidden">
+                <DialogHeader className="px-4 py-3 bg-gradient-to-r from-green-500/10 to-emerald-500/5 border-b">
+                  <DialogTitle className="text-lg flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    Select Conversion Date
+                  </DialogTitle>
+                  <div className="mt-2">
+                    <p className="text-sm font-medium">
+                      {selectedOffer.offerType}
+                      <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                        #{selectedOffer.caseNumber}
+                      </span>
+                    </p>
+                  </div>
+                </DialogHeader>
+                <div className="p-3">
+                  <Calendar
+                    mode="single"
+                    selected={undefined}
+                    onSelect={(date) => {
+                      if (date && conversionOfferId) {
+                        handleConversionDateSelect(conversionOfferId, date);
+                        setConversionDialogOpen(false);
+                        setConversionOfferId(null);
+                      }
+                    }}
+                    disabled={(date) => {
+                      const offerDate = new Date(selectedOffer.date);
+                      offerDate.setHours(0, 0, 0, 0);
+                      return date < offerDate;
+                    }}
+                    initialFocus
+                    className="w-full"
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
       </motion.main>
     </div>
   );

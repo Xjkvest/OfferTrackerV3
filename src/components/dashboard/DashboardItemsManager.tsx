@@ -143,7 +143,7 @@ export function DashboardItemsManager({
       case 'calendar':
         return (
           <DraggableDashboardItem key={elementId} elementId={elementId}>
-            <div className="mb-4">
+            <div>
               <h2 className="text-lg font-semibold mb-2">Calendar View</h2>
               <DashboardCalendar />
             </div>

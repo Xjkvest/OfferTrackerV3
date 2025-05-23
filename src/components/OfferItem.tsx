@@ -682,21 +682,23 @@ export const OfferItem = React.memo(({ offer, onUpdate, className = "" }: OfferI
       </Card>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Offer Details</DialogTitle>
             <DialogDescription>
               View and edit offer details including CSAT rating, conversion status, and follow-up information.
             </DialogDescription>
           </DialogHeader>
-          <OfferDetails 
-            offer={offer} 
-            onClose={() => setIsOpen(false)} 
-            onUpdate={() => {
-              if (onUpdate) onUpdate();
-              setIsOpen(false);
-            }} 
-          />
+          <div className="flex-1 overflow-hidden">
+            <OfferDetails 
+              offer={offer} 
+              onClose={() => setIsOpen(false)} 
+              onUpdate={() => {
+                if (onUpdate) onUpdate();
+                setIsOpen(false);
+              }} 
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </TooltipProvider>

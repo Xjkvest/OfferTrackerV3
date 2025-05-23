@@ -132,7 +132,7 @@ export function OfferDialog({ open, onOpenChange, offerId, onSetupComplete }: Of
   // Adjust dialog max width based on content
   const getDialogClass = () => {
     if (showSetup) return "sm:max-w-md md:max-w-lg p-6 pb-6 overflow-visible"; 
-    if (selectedOffer) return "sm:max-w-md md:max-w-xl";
+    if (selectedOffer) return "sm:max-w-md md:max-w-xl max-h-[90vh] overflow-hidden flex flex-col";
     return "sm:max-w-md p-0 overflow-hidden";
   };
   
@@ -140,7 +140,7 @@ export function OfferDialog({ open, onOpenChange, offerId, onSetupComplete }: Of
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className={getDialogClass()}>
         {getDialogTitle() ? (
-          <DialogHeader>
+          <DialogHeader className={selectedOffer ? "shrink-0" : ""}>
             <DialogTitle>{getDialogTitle()}</DialogTitle>
             {showSetup ? (
               <>
@@ -154,7 +154,9 @@ export function OfferDialog({ open, onOpenChange, offerId, onSetupComplete }: Of
                 <DialogDescription>
                   View and manage details for this offer
                 </DialogDescription>
-                <OfferDetails offer={selectedOffer} onClose={handleClose} />
+                <div className="flex-1 overflow-hidden mt-4">
+                  <OfferDetails offer={selectedOffer} onClose={handleClose} />
+                </div>
               </>
             )}
           </DialogHeader>
