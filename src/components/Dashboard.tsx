@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { DashboardItemsManager } from "./dashboard/DashboardItemsManager";
 import { DashboardHeader } from "./dashboard/DashboardHeader";
 import { useSimpleKeyboardShortcuts } from "@/hooks/use-simple-keyboard-shortcuts";
+import { getTodayDateString } from "@/utils/dateUtils";
 import { HelpButton } from "./HelpButton";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -73,7 +74,7 @@ export function Dashboard() {
       });
     }
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateString();
     
     // Check both followups array and legacy followupDate
     const urgentFollowups = offers.filter(o => {

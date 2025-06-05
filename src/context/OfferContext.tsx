@@ -6,6 +6,7 @@ import { parseISO, isWithinInterval, startOfDay, endOfDay, differenceInDays } fr
 import { format } from 'date-fns';
 import { calculateEnhancedStreak, StreakInfo } from '@/utils/streakCalculation';
 import { generateUUID } from '@/utils/uuid';
+import { getTodayDateString, toLocalISOString } from '@/utils/dateUtils';
 
 export interface Offer {
   id: string;
@@ -140,12 +141,12 @@ export const OfferProvider: React.FC<OfferProviderProps> = ({ children }) => {
   }, [offers, isLoading]);
 
   const todaysOffers = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateString();
     return offers.filter(offer => offer.date.startsWith(today));
   }, [offers]);
 
   const checkFollowups = useCallback(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateString();
     
     offers.forEach(offer => {
       // Check active followups in the new structure
@@ -213,7 +214,7 @@ export const OfferProvider: React.FC<OfferProviderProps> = ({ children }) => {
     const newOffer: Offer = {
       ...offer,
       id: generateUUID(),
-      date: offer.dateOverride || new Date().toISOString(),
+      date: offer.dateOverride || toLocalISOString(new Date()),
     };
     
     setOffers(prev => [newOffer, ...prev]);
@@ -235,7 +236,7 @@ export const OfferProvider: React.FC<OfferProviderProps> = ({ children }) => {
             if (offer.id === id) {
               // Handle conversion date logic
               if (updatesCopy.converted === true && !updatesCopy.conversionDate && !offer.conversionDate) {
-                updatesCopy.conversionDate = new Date().toISOString().split('T')[0];
+                updatesCopy.conversionDate = getTodayDateString();
               }
               
               if (updatesCopy.converted === false) {

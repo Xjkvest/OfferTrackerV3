@@ -18,6 +18,7 @@ import { format, differenceInDays } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Calendar } from "@/components/ui/calendar";
+import { getTodayDateString, toISODateString } from "@/utils/dateUtils";
 import { Input } from "@/components/ui/input";
 import { CaseLink } from "./CaseLink";
 import { Switch } from "@/components/ui/switch";
@@ -150,7 +151,7 @@ export function OfferDetails({ offer, onClose, onUpdate }: OfferDetailsProps) {
       setEditedOffer(prev => ({ 
         ...prev, 
         converted: true,
-        conversionDate: new Date().toISOString().split('T')[0]
+        conversionDate: getTodayDateString()
       }));
     } else {
       setIsConversionCalendarOpen(false);
@@ -167,7 +168,7 @@ export function OfferDetails({ offer, onClose, onUpdate }: OfferDetailsProps) {
     if (date) {
       setEditedOffer(prev => ({ 
         ...prev,
-        conversionDate: date.toISOString().split('T')[0],
+        conversionDate: toISODateString(date),
         converted: true
       }));
       
@@ -703,7 +704,7 @@ export function OfferDetails({ offer, onClose, onUpdate }: OfferDetailsProps) {
                         setEditedOffer(prev => ({ 
                           ...prev, 
                           converted: true,
-                          conversionDate: new Date().toISOString().split('T')[0]
+                          conversionDate: getTodayDateString()
                         }));
                       } else {
                         setIsConversionCalendarOpen(false);

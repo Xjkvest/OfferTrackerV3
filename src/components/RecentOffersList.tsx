@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { getTodayDateString, toISODateString } from "@/utils/dateUtils";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -56,7 +57,7 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
     if (converted) {
       updateOffer(offerId, { 
         converted: true,
-        conversionDate: new Date().toISOString().split('T')[0]
+        conversionDate: getTodayDateString()
       });
       toast({
         title: "Conversion Status Updated",
@@ -78,7 +79,7 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
     if (date) {
       updateOffer(offerId, { 
         converted: true,
-        conversionDate: date.toISOString().split('T')[0]
+        conversionDate: toISODateString(date)
       });
       toast({
         title: "Offer Converted",
@@ -96,7 +97,7 @@ export function RecentOffersList({ offers, onOfferClick, hideFilters = false }: 
       date.setMinutes(minutes);
       
       // Convert date to YYYY-MM-DD format
-      const dateString = date.toISOString().split('T')[0];
+      const dateString = toISODateString(date);
 
       // Get the current offer to update
       const offer = offers.find(o => o.id === offerId);

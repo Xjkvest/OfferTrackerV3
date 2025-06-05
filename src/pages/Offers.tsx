@@ -9,6 +9,7 @@ import { PlusCircle, Clock, Filter, Search, Download, X, RefreshCw } from "lucid
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSearchParams } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
+import { getTodayDateString, toISODateString } from "@/utils/dateUtils";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -144,8 +145,8 @@ const Offers = () => {
     if (selectedType) newParams.set("type", selectedType);
     if (selectedCSAT) newParams.set("csat", selectedCSAT);
     if (selectedConversion) newParams.set("converted", selectedConversion);
-    if (startDate) newParams.set("startDate", startDate.toISOString().split('T')[0]);
-    if (endDate) newParams.set("endDate", endDate.toISOString().split('T')[0]);
+    if (startDate) newParams.set("startDate", toISODateString(startDate));
+    if (endDate) newParams.set("endDate", toISODateString(endDate));
     
     // Only update if they've changed to avoid unnecessary history entries
     if (newParams.toString() !== searchParams.toString()) {
@@ -362,7 +363,7 @@ const Offers = () => {
     if (converted) {
       updateOffer(offerId, { 
         converted: true,
-        conversionDate: new Date().toISOString().split('T')[0]
+        conversionDate: getTodayDateString()
       });
       toast({
         title: "Conversion Status Updated",
@@ -384,7 +385,7 @@ const Offers = () => {
     if (date) {
       updateOffer(offerId, { 
         converted: true,
-        conversionDate: date.toISOString().split('T')[0]
+        conversionDate: toISODateString(date)
       });
       toast({
         title: "Offer Converted",
@@ -397,7 +398,7 @@ const Offers = () => {
   const handleFollowupDateChange = (offerId: string, date: Date | undefined) => {
     if (!date) return;
     
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toISODateString(date);
     const offer = offers.find(o => o.id === offerId);
     if (!offer) return;
     
@@ -439,7 +440,7 @@ const Offers = () => {
     
     try {
       // Get today's date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateString();
       
       // Add a new followup for today
       const success = await addNewFollowup(

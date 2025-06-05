@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { getTodayDateString, toISODateString } from "@/utils/dateUtils";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, ShoppingCart, X } from "lucide-react";
@@ -29,7 +30,7 @@ export function ConversionDateField({ form }: ConversionDateFieldProps) {
     setIsConverted(checked);
     if (checked) {
       // Set today's date as default
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateString();
       form.setValue('conversionDate', today);
       toast({
         title: "Marked as Converted",
@@ -47,7 +48,7 @@ export function ConversionDateField({ form }: ConversionDateFieldProps) {
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      form.setValue('conversionDate', date.toISOString().split('T')[0]);
+      form.setValue('conversionDate', toISODateString(date));
       toast({
         title: "Conversion Date Set",
         description: `Conversion date set to ${format(date, "PPP")}`,

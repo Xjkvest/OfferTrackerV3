@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CaseLink } from "./CaseLink";
-import { getConversionLagInfo } from "@/utils/dateUtils";
+import { getConversionLagInfo, getTodayDateString, toISODateString } from "@/utils/dateUtils";
 import { useFollowupManager } from "@/hooks/useFollowupManager";
 import { useNavigate } from "react-router-dom";
 
@@ -86,9 +86,9 @@ export const OfferItem = React.memo(({ offer, onUpdate, className = "" }: OfferI
   const handleConversionChange = (converted: boolean) => {
     if (converted) {
       setShowConversionDate(true);
-      updateOffer(offer.id, { 
-        converted, 
-        conversionDate: new Date().toISOString().split('T')[0]
+      updateOffer(offer.id, {
+        converted,
+        conversionDate: getTodayDateString()
       });
     } else {
       setShowConversionDate(false);
@@ -107,7 +107,7 @@ export const OfferItem = React.memo(({ offer, onUpdate, className = "" }: OfferI
 
   const handleConversionDateChange = (date: Date | undefined) => {
     if (date) {
-      updateOffer(offer.id, { conversionDate: date.toISOString().split('T')[0] });
+      updateOffer(offer.id, { conversionDate: toISODateString(date) });
       onUpdate?.();
       toast({
         title: "Conversion Date Updated",
@@ -119,7 +119,7 @@ export const OfferItem = React.memo(({ offer, onUpdate, className = "" }: OfferI
   const handleFollowupDateChange = (date: Date | undefined) => {
     if (date) {
       // If setting a new followup date
-      const dateString = date.toISOString().split('T')[0];
+      const dateString = toISODateString(date);
       
       // Create a new followup item
       const newFollowup = {
@@ -271,7 +271,7 @@ export const OfferItem = React.memo(({ offer, onUpdate, className = "" }: OfferI
     
     try {
       // Get today's date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateString();
       
       // Add a new followup for today
       const success = await addNewFollowup(
@@ -331,7 +331,7 @@ export const OfferItem = React.memo(({ offer, onUpdate, className = "" }: OfferI
     // Don't show due date for converted offers
     if (offer.converted) return null;
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayDateString();
     const dueDate = new Date();
     dueDate.setDate(date.getDate() + 30);
     const formattedDueDate = format(dueDate, "MMM d");
@@ -567,9 +567,9 @@ export const OfferItem = React.memo(({ offer, onUpdate, className = "" }: OfferI
                         return;
                       }
 
-                      updateOffer(offer.id, { 
+                      updateOffer(offer.id, {
                         converted: true,
-                        conversionDate: date.toISOString().split('T')[0] 
+                        conversionDate: toISODateString(date)
                       });
                       toast({
                         title: "Offer Converted",

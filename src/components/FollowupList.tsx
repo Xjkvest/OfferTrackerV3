@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FollowupItem } from "./FollowupItem";
-import { formatFollowupDate } from "@/utils/dateUtils";
+import { formatFollowupDate, getTodayDateString, toISODateString, toLocalISOString } from "@/utils/dateUtils";
 import { CaseLink } from "./CaseLink";
 import { useFollowupManager } from "@/hooks/useFollowupManager";
 import { Calendar } from "@/components/ui/calendar";
@@ -41,7 +41,7 @@ export function FollowupList({ onOfferClick }: FollowupListProps) {
   } = useFollowupManager();
   
   const [isOpen, setIsOpen] = useState(false);
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateString();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [isAddingFollowup, setIsAddingFollowup] = useState(false);
@@ -110,7 +110,7 @@ export function FollowupList({ onOfferClick }: FollowupListProps) {
     if (selectedOfferId && selectedDate) {
       const offer = offers.find(o => o.id === selectedOfferId);
       if (offer) {
-        const dateString = selectedDate.toISOString().split('T')[0];
+        const dateString = toISODateString(selectedDate);
         await addNewFollowup(selectedOfferId, offer, dateString);
         
         // Reset state
@@ -357,7 +357,7 @@ export function FollowupList({ onOfferClick }: FollowupListProps) {
                             id: 'completed',
                             date: offer.followupDate || '',
                             completed: true,
-                            completedAt: new Date().toISOString()
+                            completedAt: toLocalISOString(new Date())
                           };
                           
                           return (
