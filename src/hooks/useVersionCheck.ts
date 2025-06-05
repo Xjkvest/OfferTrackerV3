@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const CURRENT_VERSION = '1.1.0'; // This should match package.json version
+const CURRENT_VERSION = '1.1.1'; // This should match package.json version
 const VERSION_STORAGE_KEY = 'offer-tracker-last-seen-version';
 
 export interface UpdateInfo {
@@ -13,6 +13,19 @@ export interface UpdateInfo {
 
 // Define what's new for each version
 const VERSION_UPDATES: Record<string, UpdateInfo> = {
+  '1.1.1': {
+    version: '1.1.1',
+    title: 'Local Timezone Update',
+    features: [
+      'Offers and follow-ups now record dates using your local timezone'
+    ],
+    improvements: [
+      'Today filters and reminders match your computer\'s time'
+    ],
+    fixes: [
+      'Fixed late-night offers counting toward the next day'
+    ]
+  },
   '1.1.0': {
     version: '1.1.0',
     title: 'Smart Follow-ups & Update System',

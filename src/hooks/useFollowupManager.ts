@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { Offer, FollowupItem, useOffers } from '@/context/OfferContext';
 import { generateUUID } from '@/utils/uuid';
+import { getTodayDateString, toLocalISOString } from '@/utils/dateUtils';
 
 export function useFollowupManager() {
   const { updateOffer, offers } = useOffers();
@@ -36,7 +37,7 @@ export function useFollowupManager() {
           updatedFollowups[followupIndex] = {
             ...updatedFollowups[followupIndex],
             completed: true,
-            completedAt: new Date().toISOString()
+            completedAt: toLocalISOString(new Date())
           };
         } else {
           console.warn(`Followup with ID ${followupId} not found`);
@@ -62,7 +63,7 @@ export function useFollowupManager() {
             updatedFollowups[followupIndex] = {
               ...updatedFollowups[followupIndex],
               completed: true,
-              completedAt: new Date().toISOString()
+              completedAt: toLocalISOString(new Date())
             };
           }
         } else {
@@ -75,7 +76,7 @@ export function useFollowupManager() {
           id: generateUUID(),
           date: offer.followupDate,
           completed: true,
-          completedAt: new Date().toISOString(),
+          completedAt: toLocalISOString(new Date()),
           notes: 'Automatically migrated from legacy format'
         });
       } else {
@@ -194,7 +195,7 @@ export function useFollowupManager() {
           return {
             ...followup,
             completed: true,
-            completedAt: new Date().toISOString(),
+            completedAt: toLocalISOString(new Date()),
             notes: followup.notes ? `${followup.notes} (Canceled)` : 'Canceled'
           };
         }
@@ -261,7 +262,7 @@ export function useFollowupManager() {
     const followupDate = getActiveFollowupDate(offer);
     if (!followupDate) return false;
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateString();
     return followupDate === today;
   }, [getActiveFollowupDate]);
 
@@ -269,7 +270,7 @@ export function useFollowupManager() {
     const followupDate = getActiveFollowupDate(offer);
     if (!followupDate) return false;
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateString();
     return followupDate < today;
   }, [getActiveFollowupDate]);
 
@@ -336,7 +337,7 @@ export function useFollowupManager() {
 
   // Categorize followups into today, overdue, and upcoming
   const getCategorizedFollowups = useCallback(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateString();
     const overdue: Offer[] = [];
     const todayFollowups: Offer[] = [];
     const upcoming: Offer[] = [];

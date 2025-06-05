@@ -4,6 +4,7 @@ import { CalendarClock, CheckCircle, AlertTriangle, PlusCircle } from "lucide-re
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Offer, FollowupItem as FollowupItemType } from "@/context/OfferContext";
+import { getTodayDateString } from "@/utils/dateUtils";
 import { CaseLink } from "./CaseLink";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,7 +27,7 @@ export function FollowupItem({
   isOverdue,
   onAddNewFollowup
 }: FollowupItemProps) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateString();
   
   // If we don't have a followup, try to use the legacy format
   const followupDate = followup?.date || offer.followupDate || '';

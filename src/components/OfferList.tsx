@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { exportToCsv } from "@/utils/exportData";
+import { getTodayDateString, toISODateString } from "@/utils/dateUtils";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -188,8 +189,8 @@ export function OfferList({
       if (selectedType) newSearchParams.set("type", selectedType);
       if (selectedCSAT) newSearchParams.set("csat", selectedCSAT);
       if (selectedConversion) newSearchParams.set("converted", selectedConversion);
-      if (startDate) newSearchParams.set("startDate", startDate.toISOString().split('T')[0]);
-      if (endDate) newSearchParams.set("endDate", endDate.toISOString().split('T')[0]);
+      if (startDate) newSearchParams.set("startDate", toISODateString(startDate));
+      if (endDate) newSearchParams.set("endDate", toISODateString(endDate));
       
       setSearchParams(newSearchParams);
     }
@@ -207,7 +208,7 @@ export function OfferList({
     let filteredResults = offers;
     
     if (mode === 'today') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateString();
       filteredResults = offers.filter(offer => offer.date.startsWith(today));
     }
     

@@ -38,7 +38,7 @@ export const formatFollowupDate = (date: Date | string): string => {
  * Formats a date for storing as a follow-up date (YYYY-MM-DD)
  */
 export const formatDateForStorage = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  return toISODateString(date);
 };
 
 /**
@@ -73,7 +73,13 @@ export function getConversionLagInfo(offerDate: string, conversionDate: string |
  * Returns today's date as YYYY-MM-DD
  */
 export const getTodayDateString = (): string => {
-  return new Date().toISOString().split('T')[0];
+  return toISODateString(new Date());
+};
+
+export const toLocalISOString = (date: Date): string => {
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - offsetMs);
+  return localDate.toISOString().replace('Z', '');
 };
 
 /**

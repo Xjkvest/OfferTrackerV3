@@ -19,7 +19,7 @@ import {
   Star
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, subMonths, getDay, addDays } from 'date-fns';
-import { getDaysInMonth, getDaysPassedInCurrentMonth } from '@/utils/dateUtils';
+import { getDaysInMonth, getDaysPassedInCurrentMonth, toISODateString } from '@/utils/dateUtils';
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -153,15 +153,15 @@ export const MonthlyGoalSummary = () => {
   // Get the date range for the current month
   const startOfCurrentMonth = startOfMonth(currentDate);
   const endOfCurrentMonth = endOfMonth(currentDate);
-  const startOfMonthStr = startOfCurrentMonth.toISOString().split('T')[0];
-  const currentDateStr = currentDate.toISOString().split('T')[0];
+  const startOfMonthStr = toISODateString(startOfCurrentMonth);
+  const currentDateStr = toISODateString(currentDate);
   
   // Previous month data
   const prevMonth = subMonths(currentDate, 1);
   const startOfPrevMonth = startOfMonth(prevMonth);
   const endOfPrevMonth = endOfMonth(prevMonth);
-  const startOfPrevMonthStr = startOfPrevMonth.toISOString().split('T')[0];
-  const endOfPrevMonthStr = endOfPrevMonth.toISOString().split('T')[0];
+  const startOfPrevMonthStr = toISODateString(startOfPrevMonth);
+  const endOfPrevMonthStr = toISODateString(endOfPrevMonth);
   
   // Filter offers for current month
   const offersThisMonth = offers.filter(offer => {

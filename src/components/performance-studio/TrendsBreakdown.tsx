@@ -15,7 +15,7 @@ import {
 } from "@/utils/trendAnalysis";
 import { motion } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { formatDateForStorage } from "@/utils/dateUtils";
+import { formatDateForStorage, toISODateString } from "@/utils/dateUtils";
 import { ModernAnalyticsCard } from "@/components/charts/ModernAnalyticsCard";
 import { TrendsLineChart } from "@/components/charts/TrendsLineChart";
 import { TrendsBarChart } from "@/components/charts/TrendsBarChart";
@@ -106,7 +106,7 @@ export const TrendsBreakdown: React.FC = () => {
     
     // Group by date
     sortedOffers.forEach(offer => {
-      const dateKey = new Date(offer.date).toISOString().split('T')[0];
+      const dateKey = toISODateString(new Date(offer.date));
       if (!dateMap.has(dateKey)) {
         dateMap.set(dateKey, { 
           date: dateKey, 

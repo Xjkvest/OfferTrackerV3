@@ -1,5 +1,6 @@
 import { Offer } from "@/context/OfferContext";
 import { parseISO, isWithinInterval, startOfDay, endOfDay, isSameDay } from "date-fns";
+import { getTodayDateString } from './dateUtils';
 
 // Helper function to check if an offer has active followups
 const hasActiveFollowup = (offer: Offer): boolean => {
@@ -34,7 +35,7 @@ export const isFollowupOverdue = (offer: Offer): boolean => {
   const activeFollowupDate = getActiveFollowupDate(offer);
   if (!activeFollowupDate) return false;
   
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateString();
   return activeFollowupDate < today;
 };
 
@@ -43,7 +44,7 @@ export const isFollowupDueToday = (offer: Offer): boolean => {
   const activeFollowupDate = getActiveFollowupDate(offer);
   if (!activeFollowupDate) return false;
   
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateString();
   return activeFollowupDate === today;
 };
 
