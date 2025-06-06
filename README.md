@@ -84,6 +84,23 @@ offer-tracker/
 └── index.html       # HTML template
 ```
 
+## Keyboard Shortcuts
+
+Speed up your workflow with these handy shortcuts:
+
+- `⌘ Shift N` – Create new offer
+- `⌘ Shift O` – Quick log offer
+- `⌘ ,` – Open preferences
+- `⌘ Shift /` – Show keyboard shortcuts
+- `⌘ Shift D` – Go to dashboard
+- `⌘ Shift L` – Go to offers list
+- `⌘ Shift A` – Go to analytics
+- `⌘ Shift S` – Go to settings
+- `⌘ Shift B` – Go to notifications
+- `Escape` – Close dialogs
+
+See the [Help page](/help) for the full list.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
